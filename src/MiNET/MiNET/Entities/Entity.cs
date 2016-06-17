@@ -61,6 +61,8 @@ namespace MiNET.Entities
 			metadata[3] = new MetadataByte(1);
 			metadata[4] = new MetadataByte(0);
 			metadata[15] = new MetadataByte(0);
+			metadata[23] = new MetadataLong(-1); // Lead Holder
+			metadata[24] = new MetadataByte(0); // Lead Enabled
 			//metadata[16] = new MetadataByte(0);
 
 			return metadata;
