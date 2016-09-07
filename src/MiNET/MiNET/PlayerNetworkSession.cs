@@ -302,26 +302,28 @@ namespace MiNET
 					throw new InvalidDataException("Incorrect ZLib header. Expected 0x78 0x9C");
 				}
 				stream.ReadByte();
-				using (var defStream2 = new DeflateStream(stream, CompressionMode.Decompress, false))
-				{
-					// Get actual package out of bytes
-					MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream();
-					defStream2.CopyTo(destination);
-					destination.Position = 0;
-					NbtBinaryReader reader = new NbtBinaryReader(destination, true);
+                using (var defStream2 = new DeflateStream(stream, CompressionMode.Decompress, false))
+                {
+                    // Get actual package out of bytes
+                    using (MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream())
+                    { 
+                        defStream2.CopyTo(destination);
+                        destination.Position = 0;
+                        NbtBinaryReader reader = new NbtBinaryReader(destination, true);
 
-					while (destination.Position < destination.Length)
-					{
-						int len = reader.ReadInt32();
-						byte[] internalBuffer = reader.ReadBytes(len);
+                        while (destination.Position < destination.Length)
+                        {
+                            int len = reader.ReadInt32();
+                            byte[] internalBuffer = reader.ReadBytes(len);
 
-						//if (Log.IsDebugEnabled)
-						//	Log.Debug($"0x{internalBuffer[0]:x2}\n{Package.HexDump(internalBuffer)}");
+                            //if (Log.IsDebugEnabled)
+                            //	Log.Debug($"0x{internalBuffer[0]:x2}\n{Package.HexDump(internalBuffer)}");
 
-						messages.Add(PackageFactory.CreatePackage(internalBuffer[0], internalBuffer, "mcpe") ?? new UnknownPackage(internalBuffer[0], internalBuffer));
-					}
+                            messages.Add(PackageFactory.CreatePackage(internalBuffer[0], internalBuffer, "mcpe") ?? new UnknownPackage(internalBuffer[0], internalBuffer));
+                        }
 
-					if (destination.Length > destination.Position) throw new Exception("Have more data");
+                        if (destination.Length > destination.Position) throw new Exception("Have more data");
+                    }
 				}
 				foreach (var msg in messages)
 				{

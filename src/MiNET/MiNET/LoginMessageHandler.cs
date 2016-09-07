@@ -111,29 +111,32 @@ namespace MiNET
 
 			using (var defStream2 = new DeflateStream(stream, CompressionMode.Decompress, false))
 			{
-				// Get actual package out of bytes
-				MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream();
-				defStream2.CopyTo(destination);
-				destination.Position = 0;
-				NbtBinaryReader reader = new NbtBinaryReader(destination, false);
+                // Get actual package out of bytes
+                using (MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream())
+                {
 
-				try
-				{
-					var countCertData = reader.ReadInt32();
-					Log.Debug("Count cert: " + countCertData);
-					certificateChain = Encoding.UTF8.GetString(reader.ReadBytes(countCertData));
-					Log.Debug("Decompressed certificateChain " + certificateChain);
+                    defStream2.CopyTo(destination);
+                    destination.Position = 0;
+                    NbtBinaryReader reader = new NbtBinaryReader(destination, false);
 
-					var countSkinData = reader.ReadInt32();
-					Log.Debug("Count skin: " + countSkinData);
-					skinData = Encoding.UTF8.GetString(reader.ReadBytes(countSkinData));
-					Log.Debug("Decompressed skinData" + skinData);
-				}
-				catch (Exception e)
-				{
-					Log.Error("Parsing login", e);
-					return;
-				}
+                    try
+                    {
+                        var countCertData = reader.ReadInt32();
+                        Log.Debug("Count cert: " + countCertData);
+                        certificateChain = Encoding.UTF8.GetString(reader.ReadBytes(countCertData));
+                        Log.Debug("Decompressed certificateChain " + certificateChain);
+
+                        var countSkinData = reader.ReadInt32();
+                        Log.Debug("Count skin: " + countSkinData);
+                        skinData = Encoding.UTF8.GetString(reader.ReadBytes(countSkinData));
+                        Log.Debug("Decompressed skinData" + skinData);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error("Parsing login", e);
+                        return;
+                    }
+                }
 			}
 
 

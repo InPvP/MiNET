@@ -291,56 +291,53 @@ namespace MiNET.Worlds
 		{
 			if (_cache != null) return _cache;
 
-			MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream();
-			{
-				NbtBinaryWriter writer = new NbtBinaryWriter(stream, true);
+            using (MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream())
+            {
+                NbtBinaryWriter writer = new NbtBinaryWriter(stream, true);
 
-				writer.Write(blocks);
-				writer.Write(metadata.Data);
-				writer.Write(skylight.Data);
-				writer.Write(blocklight.Data);
+                writer.Write(blocks);
+                writer.Write(metadata.Data);
+                writer.Write(skylight.Data);
+                writer.Write(blocklight.Data);
 
-				//RecalcHeight();
-				writer.Write(height);
+                //RecalcHeight();
+                writer.Write(height);
 
-				BiomeUtils utils = new BiomeUtils();
-				utils.PrecomputeBiomeColors();
+                BiomeUtils utils = new BiomeUtils();
+                utils.PrecomputeBiomeColors();
 
-				InterpolateBiomes();
+                InterpolateBiomes();
 
-				for (int i = 0; i < biomeId.Length; i++)
-				{
-					var biome = biomeId[i];
-					int color = biomeColor[i];
-					writer.Write((color & 0x00ffffff) | biome << 24);
-				}
+                for (int i = 0; i < biomeId.Length; i++)
+                {
+                    var biome = biomeId[i];
+                    int color = biomeColor[i];
+                    writer.Write((color & 0x00ffffff) | biome << 24);
+                }
 
-				int extraSize = 0;
-				writer.Write(extraSize); // No extra data
+                int extraSize = 0;
+                writer.Write(extraSize); // No extra data
 
-				if (BlockEntities.Count == 0)
-				{
-					NbtFile file = new NbtFile(new NbtCompound(string.Empty)) {BigEndian = false};
-					file.SaveToStream(writer.BaseStream, NbtCompression.None);
-				}
-				else
-				{
-					foreach (NbtCompound blockEntity in BlockEntities.Values.ToArray())
-					{
-						NbtFile file = new NbtFile(blockEntity) {BigEndian = false};
-						file.SaveToStream(writer.BaseStream, NbtCompression.None);
-					}
-				}
+                if (BlockEntities.Count == 0)
+                {
+                    NbtFile file = new NbtFile(new NbtCompound(string.Empty)) { BigEndian = false };
+                    file.SaveToStream(writer.BaseStream, NbtCompression.None);
+                }
+                else
+                {
+                    foreach (NbtCompound blockEntity in BlockEntities.Values.ToArray())
+                    {
+                        NbtFile file = new NbtFile(blockEntity) { BigEndian = false };
+                        file.SaveToStream(writer.BaseStream, NbtCompression.None);
+                    }
+                }
 
-				writer.Flush();
+                writer.Flush();
 
-				_cache = stream.ToArray();
+                _cache = stream.ToArray();
 
-				writer.Close();
-			}
-
-			stream.Close();
-
+                writer.Close();
+            }
 			return _cache;
 		}
 
