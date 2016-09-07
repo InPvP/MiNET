@@ -243,6 +243,7 @@ namespace MiNET.Utils
 
 		public static byte[] CompressJwtBytes(byte[] certChain, byte[] skinData, CompressionLevel compressionLevel)
 		{
+            byte[] bytes;
             using (MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream())
             {
                 stream.WriteByte(0x78);
@@ -284,7 +285,7 @@ namespace MiNET.Utils
                 }
                 stream.Write(checksumBytes, 0, checksumBytes.Length);
 
-                var bytes = stream.ToArray();
+                bytes = stream.ToArray();
             }
 
 			return bytes;
