@@ -882,106 +882,106 @@ namespace MiNET.Net
 
 			foreach (Recipe recipe in recipes)
 			{
-                using (var memoryStream = MiNetServer.MemoryStreamManager.GetStream())
-                {
-                    if (recipe is ShapelessRecipe)
-                    {
-                        McpeWriter writer = new McpeWriter(memoryStream);
-                        ShapelessRecipe rec = (ShapelessRecipe)recipe;
-                        writer.Write(rec.Input.Count);
-                        foreach (Item stack in rec.Input)
-                        {
-                            writer.Write(stack);
-                        }
-                        writer.Write(1);
-                        writer.Write(rec.Result);
-                        writer.Write(new UUID(Guid.NewGuid()));
+				using (var memoryStream = MiNetServer.MemoryStreamManager.GetStream())
+				{
+					if (recipe is ShapelessRecipe)
+					{
+						McpeWriter writer = new McpeWriter(memoryStream);
+						ShapelessRecipe rec = (ShapelessRecipe)recipe;
+						writer.Write(rec.Input.Count);
+						foreach (Item stack in rec.Input)
+						{
+							writer.Write(stack);
+						}
+						writer.Write(1);
+						writer.Write(rec.Result);
+						writer.Write(new UUID(Guid.NewGuid()));
 
-                        Write(0); // Type
-                        var bytes = memoryStream.ToArray();
-                        Write(bytes.Length);
-                        Write(bytes);
-                    }
-                    else if (recipe is ShapedRecipe)
-                    {
-                        McpeWriter writer = new McpeWriter(memoryStream);
+						Write(0); // Type
+						var bytes = memoryStream.ToArray();
+						Write(bytes.Length);
+						Write(bytes);
+					}
+					else if (recipe is ShapedRecipe)
+					{
+						McpeWriter writer = new McpeWriter(memoryStream);
 
-                        ShapedRecipe rec = (ShapedRecipe)recipe;
-                        writer.Write(rec.Width);
-                        writer.Write(rec.Height);
+						ShapedRecipe rec = (ShapedRecipe)recipe;
+						writer.Write(rec.Width);
+						writer.Write(rec.Height);
 
-                        for (int w = 0; w < rec.Width; w++)
-                        {
-                            for (int h = 0; h < rec.Height; h++)
-                            {
-                                writer.Write(rec.Input[(h * rec.Width) + w]);
-                            }
-                        }
-                        writer.Write(1);
-                        writer.Write(rec.Result);
-                        writer.Write(new UUID(Guid.NewGuid()));
+						for (int w = 0; w < rec.Width; w++)
+						{
+							for (int h = 0; h < rec.Height; h++)
+							{
+								writer.Write(rec.Input[(h * rec.Width) + w]);
+							}
+						}
+						writer.Write(1);
+						writer.Write(rec.Result);
+						writer.Write(new UUID(Guid.NewGuid()));
 
-                        Write(1); // Type
-                        var bytes = memoryStream.ToArray();
-                        Write(bytes.Length);
-                        Write(bytes);
-                    }
-                    else if (recipe is SmeltingRecipe)
-                    {
-                        ////const ENTRY_FURNACE = 2;
-                        //SmeltingRecipe recipe = new SmeltingRecipe();
-                        //short meta = ReadShort(); // input (with metadata) 
-                        //short id = ReadShort(); // input (with metadata) 
-                        //Item result = ReadItem(); // Result
-                        //recipe.Input = ItemFactory.GetItem(id, meta);
-                        //recipe.Result = result;
-                        //recipes.Add(recipe);
-                        McpeWriter writer = new McpeWriter(memoryStream);
+						Write(1); // Type
+						var bytes = memoryStream.ToArray();
+						Write(bytes.Length);
+						Write(bytes);
+					}
+					else if (recipe is SmeltingRecipe)
+					{
+						////const ENTRY_FURNACE = 2;
+						//SmeltingRecipe recipe = new SmeltingRecipe();
+						//short meta = ReadShort(); // input (with metadata) 
+						//short id = ReadShort(); // input (with metadata) 
+						//Item result = ReadItem(); // Result
+						//recipe.Input = ItemFactory.GetItem(id, meta);
+						//recipe.Result = result;
+						//recipes.Add(recipe);
+						McpeWriter writer = new McpeWriter(memoryStream);
 
-                        SmeltingRecipe rec = (SmeltingRecipe)recipe;
-                        writer.Write(rec.Input.Metadata);
-                        writer.Write(rec.Input.Id);
-                        writer.Write(rec.Result);
+						SmeltingRecipe rec = (SmeltingRecipe)recipe;
+						writer.Write(rec.Input.Metadata);
+						writer.Write(rec.Input.Id);
+						writer.Write(rec.Result);
 
-                        Write(rec.Input.Metadata == 0 ? 2 : 3); // Type
-                        var bytes = memoryStream.ToArray();
-                        Write(bytes.Length);
-                        Write(bytes);
-                    }
-                    else if (recipe is EnchantingRecipe)
-                    {
-                        McpeWriter writer = new McpeWriter(memoryStream);
+						Write(rec.Input.Metadata == 0 ? 2 : 3); // Type
+						var bytes = memoryStream.ToArray();
+						Write(bytes.Length);
+						Write(bytes);
+					}
+					else if (recipe is EnchantingRecipe)
+					{
+						McpeWriter writer = new McpeWriter(memoryStream);
 
-                        writer.Write((byte)3); // Count
-                        {
-                            writer.Write((int)1); // Cost
-                            writer.Write((byte)1); // Count
-                            writer.Write((int)9); // Id
-                            writer.Write((int)1); // Level
-                            writer.Write("Test1"); // Level
-                        }
+						writer.Write((byte)3); // Count
+						{
+							writer.Write((int)1); // Cost
+							writer.Write((byte)1); // Count
+							writer.Write((int)9); // Id
+							writer.Write((int)1); // Level
+							writer.Write("Test1"); // Level
+						}
 
-                        {
-                            writer.Write((int)2); // Cost
-                            writer.Write((byte)1); // Count
-                            writer.Write((int)10); // Id
-                            writer.Write((int)2); // Level
-                            writer.Write("Test2"); // Level
-                        }
-                        {
-                            writer.Write((int)3); // Cost
-                            writer.Write((byte)1); // Count
-                            writer.Write((int)12); // Id
-                            writer.Write((int)3); // Level
-                            writer.Write("Test3"); // Level
-                        }
+						{
+							writer.Write((int)2); // Cost
+							writer.Write((byte)1); // Count
+							writer.Write((int)10); // Id
+							writer.Write((int)2); // Level
+							writer.Write("Test2"); // Level
+						}
+						{
+							writer.Write((int)3); // Cost
+							writer.Write((byte)1); // Count
+							writer.Write((int)12); // Id
+							writer.Write((int)3); // Level
+							writer.Write("Test3"); // Level
+						}
 
-                        Write(4); // Type
-                        var bytes = memoryStream.ToArray();
-                        Write(bytes.Length);
-                        Write(bytes);
-                    }
-                }
+						Write(4); // Type
+						var bytes = memoryStream.ToArray();
+						Write(bytes.Length);
+						Write(bytes);
+					}
+				}
 			}
 
 			Write((byte) 1);
