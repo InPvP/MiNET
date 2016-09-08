@@ -654,25 +654,25 @@ namespace MiNET
 				SplitPartPackage[] waste;
 				playerSession.Splits.TryRemove(spId, out waste);
 
-                byte[] buffer;
-                using (MemoryStream stream = MemoryStreamManager.GetStream())
-                {
-                    for (int i = 0; i < spPackets.Length; i++)
-                    {
-                        SplitPartPackage splitPartPackage = spPackets[i];
-                        byte[] buf = splitPartPackage.Message;
-                        if (buf == null)
-                        {
-                            Log.Error("Expected bytes in splitpart, but got none");
-                            continue;
-                        }
+				byte[] buffer;
+				using (MemoryStream stream = MemoryStreamManager.GetStream())
+				{
+					for (int i = 0; i < spPackets.Length; i++)
+					{
+						SplitPartPackage splitPartPackage = spPackets[i];
+						byte[] buf = splitPartPackage.Message;
+						if (buf == null)
+						{
+							Log.Error("Expected bytes in splitpart, but got none");
+							continue;
+						}
 
-                        stream.Write(buf, 0, buf.Length);
-                        splitPartPackage.PutPool();
-                    }
+						stream.Write(buf, 0, buf.Length);
+						splitPartPackage.PutPool();
+					}
 
-                    buffer = stream.ToArray();
-                }
+					buffer = stream.ToArray();
+				}
 				try
 				{
 					ConnectedPackage newPackage = ConnectedPackage.CreateObject();
@@ -737,64 +737,64 @@ namespace MiNET
 				}
 				case 0x00:
 				{
-                    byte[] buffer;
-                    using (var stream = MemoryStreamManager.GetStream())
-                    {
+					byte[] buffer;
+					using (var stream = MemoryStreamManager.GetStream())
+					{
 
-                        bool isFullStatRequest = receiveBytes.Length == 15;
-                        if (Log.IsInfoEnabled) Log.InfoFormat("Full request: {0}", isFullStatRequest);
+						bool isFullStatRequest = receiveBytes.Length == 15;
+						if (Log.IsInfoEnabled) Log.InfoFormat("Full request: {0}", isFullStatRequest);
 
-                        // ID
-                        stream.WriteByte(0x00);
+						// ID
+						stream.WriteByte(0x00);
 
-                        // Sequence number
-                        stream.WriteByte(receiveBytes[3]);
-                        stream.WriteByte(receiveBytes[4]);
-                        stream.WriteByte(receiveBytes[5]);
-                        stream.WriteByte(receiveBytes[6]);
+						// Sequence number
+						stream.WriteByte(receiveBytes[3]);
+						stream.WriteByte(receiveBytes[4]);
+						stream.WriteByte(receiveBytes[5]);
+						stream.WriteByte(receiveBytes[6]);
 
-                        //{
-                        //	string str = "splitnum\0";
-                        //	byte[] bytes = Encoding.ASCII.GetBytes(str.ToCharArray());
-                        //	stream.Write(bytes, 0, bytes.Length);
-                        //}
+						//{
+						//	string str = "splitnum\0";
+						//	byte[] bytes = Encoding.ASCII.GetBytes(str.ToCharArray());
+						//	stream.Write(bytes, 0, bytes.Length);
+						//}
 
-                        MotdProvider.GetMotd(ServerInfo); // Force update the player counts :-)
+						MotdProvider.GetMotd(ServerInfo); // Force update the player counts :-)
 
-                        var data = new Dictionary<string, string>
-                        {
-                            {"splitnum", "" + (char) 128},
-                            {"hostname", "Minecraft PE Server"},
-                            {"gametype", "SMP"},
-                            {"game_id", "MINECRAFTPE"},
-                            {"version", "0.15.0"},
-                            {"server_engine", "MiNET v1.0.0"},
-                            {"plugins", "MiNET v1.0.0"},
-                            {"map", "world"},
-                            {"numplayers", MotdProvider.NumberOfPlayers.ToString()},
-                            {"maxplayers", MotdProvider.MaxNumberOfPlayers.ToString()},
-                            {"whitelist", "off"},
-					        //{"hostip", "192.168.0.1"},
-					        //{"hostport", "19132"}
-				        };
+						var data = new Dictionary<string, string>
+						{
+							{"splitnum", "" + (char) 128},
+							{"hostname", "Minecraft PE Server"},
+							{"gametype", "SMP"},
+							{"game_id", "MINECRAFTPE"},
+							{"version", "0.15.0"},
+							{"server_engine", "MiNET v1.0.0"},
+							{"plugins", "MiNET v1.0.0"},
+							{"map", "world"},
+							{"numplayers", MotdProvider.NumberOfPlayers.ToString()},
+							{"maxplayers", MotdProvider.MaxNumberOfPlayers.ToString()},
+							{"whitelist", "off"},
+							//{"hostip", "192.168.0.1"},
+							//{"hostport", "19132"}
+						};
 
-                        foreach (KeyValuePair<string, string> valuePair in data)
-                        {
-                            string key = valuePair.Key + "\x00" + valuePair.Value + "\x00";
-                            byte[] bytes = Encoding.ASCII.GetBytes(key.ToCharArray());
-                            stream.Write(bytes, 0, bytes.Length);
-                        }
+						foreach (KeyValuePair<string, string> valuePair in data)
+						{
+							string key = valuePair.Key + "\x00" + valuePair.Value + "\x00";
+							byte[] bytes = Encoding.ASCII.GetBytes(key.ToCharArray());
+							stream.Write(bytes, 0, bytes.Length);
+						}
 
-                        {
-                            string str = "\x00\x01player_\x00\x00";
-                            byte[] bytes = Encoding.ASCII.GetBytes(str.ToCharArray());
-                            stream.Write(bytes, 0, bytes.Length);
-                        }
+						{
+							string str = "\x00\x01player_\x00\x00";
+							byte[] bytes = Encoding.ASCII.GetBytes(str.ToCharArray());
+							stream.Write(bytes, 0, bytes.Length);
+						}
 
-                        // End the stream with 0 byte
-                        stream.WriteByte(0);
-                        buffer = stream.ToArray();
-                    }
+						// End the stream with 0 byte
+						stream.WriteByte(0);
+						buffer = stream.ToArray();
+					}
 					_listener.Send(buffer, buffer.Length, senderEndpoint);
 					break;
 				}

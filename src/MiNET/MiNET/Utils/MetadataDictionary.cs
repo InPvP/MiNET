@@ -110,13 +110,13 @@ namespace MiNET.Utils
 
 		public byte[] GetBytes()
 		{
-            using (var stream = MiNetServer.MemoryStreamManager.GetStream())
-            {
-                var writer = new BinaryWriter(stream);
-                WriteTo(writer);
-                writer.Flush();
-                return stream.ToArray();
-            }
+			using (var stream = MiNetServer.MemoryStreamManager.GetStream())
+			{
+				var writer = new BinaryWriter(stream);
+				WriteTo(writer);
+				writer.Flush();
+				return stream.ToArray();
+			}
 		}
 	}
 

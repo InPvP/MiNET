@@ -1097,7 +1097,7 @@ namespace MiNET
 				if (_openInventory != null)
 				{
 					if (_openInventory.Coordinates.Equals(inventoryCoord)) return;
-					HandleMcpeContainerClose(null);
+                    HandleMcpeContainerClose(null);
 				}
 
 				// get inventory from coordinates
