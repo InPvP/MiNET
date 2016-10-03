@@ -33,9 +33,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="fNbt, Version=0.6.3.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\packages\fNbt.0.6.3\lib\net35-client\fNbt.dll</HintPath>
+    <Reference Include="fNbt, Version=0.6.5.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MiNET.fnbt.0.6.5\lib\net35-client\fNbt.dll</HintPath>
+      <Private>True</Private>
     </Reference>
     <Reference Include="jose-jwt, Version=1.9.3.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\jose-jwt.1.9.3\lib\4.0\jose-jwt.dll</HintPath>
@@ -436,7 +436,6 @@
     <Compile Include="Net\InternalPing.cs" />
     <Compile Include="Net\ItemSigner.cs" />
     <Compile Include="Net\McpeText.cs" />
-    <Compile Include="Net\McpeWriter.cs" />
     <Compile Include="Net\PlayerAction.cs" />
     <Compile Include="Net\SplitPartPackage.cs" />
     <Compile Include="Net\UUID.cs" />
@@ -533,6 +532,7 @@
     <Compile Include="Sounds\ShootSound.cs" />
     <Compile Include="Sounds\Sound.cs" />
     <Compile Include="Sounds\ClickSound.cs" />
+    <Compile Include="Utils\BatchUtils.cs" />
     <Compile Include="Utils\BoundingBox.cs" />
     <Compile Include="Utils\ChunkCoordinates.cs" />
     <Compile Include="Utils\ConcurrentPriorityQueue.cs" />
@@ -548,6 +548,8 @@
     <Compile Include="Utils\OpenSimplex.cs" />
     <Compile Include="Utils\PrefixedArray.cs" />
     <Compile Include="Utils\Ray.cs" />
+    <Compile Include="Utils\StreamExtensions.cs" />
+    <Compile Include="Utils\VarInt.cs" />
     <Compile Include="Utils\WannabeRandom.cs" />
     <Compile Include="Utils\TextUtils.cs" />
     <Compile Include="Utils\Vector3.cs" />
@@ -566,8 +568,7 @@
     <Compile Include="Utils\MetadataShort.cs" />
     <Compile Include="Utils\MetadataString.cs" />
     <Compile Include="Utils\Nbt.cs" />
-    <Compile Include="Utils\NbtBinaryReader.cs" />
-    <Compile Include="Utils\NbtBinaryWriter.cs" />
+    <Compile Include="Utils\ZLibStream.cs" />
     <Compile Include="Utils\NbtFormatException.cs" />
     <Compile Include="Utils\NibbleArray.cs" />
     <Compile Include="Utils\PlayerLocation.cs" />

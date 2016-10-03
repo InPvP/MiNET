@@ -205,7 +205,6 @@ namespace TestPlugin
 			{
 				// 128 = 32 + 32 + 32
 				var msg = McpeSpawnExperienceOrb.CreateObject();
-				msg.entityId = player.EntityId;
 				msg.x = (int) (player1.KnownPosition.X + 1);
 				msg.y = (int) (player1.KnownPosition.Y + 2);
 				msg.z = (int) (player1.KnownPosition.Z + 1);
@@ -481,7 +480,7 @@ namespace TestPlugin
 			//}
 
 			//inventory.Slots[c++] = new ItemItemFrame() { Count = 64 };
-			//inventory.Slots[c++] = new ItemBlock(new WoodenPlanks(), 0) { Count = 64 };
+			inventory.Slots[c++] = new ItemBlock(new Planks(), 0) { Count = 64 };
 			inventory.Slots[c++] = new ItemCompass(); // Wooden Sword
 			inventory.Slots[c++] = new ItemWoodenSword(); // Wooden Sword
 			inventory.Slots[c++] = new ItemStoneSword(); // Stone Sword

@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using fNbt;
 using log4net;
 using MiNET.Net;
 using MiNET.Utils;
@@ -287,13 +288,12 @@ namespace MiNET
 
 			if (typeof (McpeBatch) == message.GetType())
 			{
-				Log.Debug("Handle MCPE batch message");
 				McpeBatch batch = (McpeBatch) message;
 
 				var messages = new List<Package>();
 
 				// Get bytes
-				byte[] payload = batch.payload.Array;
+				byte[] payload = batch.payload;
 				// Decompress bytes
 
 				MemoryStream stream = new MemoryStream(payload);
@@ -311,10 +311,11 @@ namespace MiNET
 						destination.Position = 0;
 						NbtBinaryReader reader = new NbtBinaryReader(destination, true);
 
-						while (destination.Position < destination.Length)
-						{
-							int len = reader.ReadInt32();
-							byte[] internalBuffer = reader.ReadBytes(len);
+					while (destination.Position < destination.Length)
+					{
+						//int len = reader.ReadInt32();
+						int len = BatchUtils.ReadLenght(destination);
+						byte[] internalBuffer = reader.ReadBytes(len);
 
 							//if (Log.IsDebugEnabled)
 							//	Log.Debug($"0x{internalBuffer[0]:x2}\n{Package.HexDump(internalBuffer)}");
@@ -832,12 +833,14 @@ namespace MiNET
 
 						if (lenght == 1)
 						{
+							Log.Debug("Sending single packet");
 							Server.SendPackage(this, package);
 						}
 						else if (package is McpeBatch)
 						{
 							SendBuffered(messageCount, memStream);
 							messageCount = 0;
+							Log.Debug("Sending one batch packet");
 							Server.SendPackage(this, package);
 							Thread.Sleep(1); // Really important to slow down speed a bit
 						}
@@ -865,7 +868,8 @@ namespace MiNET
 							if (bytes != null)
 							{
 								messageCount++;
-								memStream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
+								BatchUtils.WriteLenght(memStream, bytes.Length);
+								//memStream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
 								memStream.Write(bytes, 0, bytes.Length);
 							}
 
@@ -891,9 +895,8 @@ namespace MiNET
 		{
 			if (messageCount == 0) return;
 
-			//byte[] bufferNoComp = CompressBytes(array, CompressionLevel.NoCompression);
-			//byte[] bufferOptimal = CompressBytes(array, CompressionLevel.Optimal);
-			var batch = Player.CreateBatchPacket(memStream.GetBuffer(), 0, (int) memStream.Length, CompressionLevel.Fastest);
+			Log.Debug("Sending batched packets");
+			var batch = BatchUtils.CreateBatchPacket(memStream.GetBuffer(), 0, (int) memStream.Length, CompressionLevel.Fastest, false);
 			batch.Encode();
 			memStream.Position = 0;
 			memStream.SetLength(0);

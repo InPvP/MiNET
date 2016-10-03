@@ -7,6 +7,7 @@ using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using fNbt;
 using Jose;
 using MiNET.Blocks;
 using MiNET.Net;
@@ -354,7 +355,7 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 			Assert.AreEqual(new Guid("af6f7c5e-fcea-3e43-bf3a-e005e400e578").ToString(), "af6f7c5e-fcea-3e43-bf3a-e005e400e578");
 		}
 
-		[Test]
+		[Test, Ignore]
 		public void TestRealDecrytp()
 		{
 			// YFtS5MGIU/UQ2w2n3RdqMoBcHOzqEQqISOyKD+W9Prk=
@@ -430,7 +431,7 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 			var messages = new List<Package>();
 
 			// Get bytes
-			byte[] payload = batch.payload.Array;
+			byte[] payload = batch.payload;
 			// Decompress bytes
 
 			Console.WriteLine("Package:\n" + Package.HexDump(payload));
