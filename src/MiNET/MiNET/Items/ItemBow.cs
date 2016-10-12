@@ -43,13 +43,11 @@ namespace MiNET.Items
 			float force = CalculateForce(timeUsed);
 			if (force < 0.1D) return;
 
-			Log.Warn($"Force {force}, time {timeUsed}");
-
 			Arrow arrow = new Arrow(player, world, !(force < 1.0));
 			arrow.KnownPosition = (PlayerLocation) player.KnownPosition.Clone();
 			arrow.KnownPosition.Y += 1.62f;
 
-			arrow.Velocity = arrow.KnownPosition.GetDirection()*(force*2.0f*1.5f);
+			arrow.Velocity = arrow.KnownPosition.GetHeadDirection()*(force*2.0f*1.5f);
 			arrow.KnownPosition.Yaw = (float) arrow.Velocity.GetYaw();
 			arrow.KnownPosition.Pitch = (float) arrow.Velocity.GetPitch();
 			arrow.BroadcastMovement = false;

@@ -40,7 +40,8 @@ namespace MiNET.Net
 			}
 			if (messagePart.Header.HasSplit && MessageParts.Count > 0)
 			{
-				//Log.Warn(string.Format("Message has split and count > 0: {0}, MTU: {1}", MessageParts.Count, mtuSize));
+				if (Log.IsDebugEnabled)
+					Log.Warn($"Message has split and count > 0: {MessageParts.Count}, MTU: {mtuSize}");
 				return false;
 			}
 			//if (Header.isContinuousSend) return false;
@@ -100,7 +101,7 @@ namespace MiNET.Net
 
 			Datagram datagram = CreateObject();
 
-			var messageParts = GetMessageParts(message, mtuSize, Reliability.Reliable, session);
+			List<MessagePart> messageParts = GetMessageParts(message, mtuSize, Reliability.Reliable, session);
 			foreach (var messagePart in messageParts)
 			{
 				if (!datagram.TryAddMessagePart(messagePart, mtuSize))
@@ -108,6 +109,7 @@ namespace MiNET.Net
 					yield return datagram;
 
 					datagram = CreateObject();
+					if (datagram.MessageParts.Count != 0) throw new Exception("Excepted no message parts in new message");
 
 					if (!datagram.TryAddMessagePart(messagePart, mtuSize))
 					{
@@ -129,7 +131,7 @@ namespace MiNET.Net
 			int orderingIndex = 0;
 
 			CryptoContext cryptoContext = session.CryptoContext;
-			if (cryptoContext != null && !(message is ConnectedPong))
+			if (cryptoContext != null && !(message is ConnectedPong) && !(message is DetectLostConnections))
 			{
 				lock (session.EncodeSync)
 				{
@@ -137,7 +139,7 @@ namespace MiNET.Net
 					reliability = Reliability.ReliableOrdered;
 					orderingIndex = Interlocked.Increment(ref session.OrderingIndex);
 
-					if (!message.ForceClear && Config.GetProperty("UseEncryption", true))
+					if (!message.ForceClear && session.CryptoContext.UseEncryption)
 					{
 						wrapper.payload = CryptoUtils.Encrypt(encodedMessage, cryptoContext);
 					}
@@ -157,7 +159,7 @@ namespace MiNET.Net
 
 			if (encodedMessage == null) return messageParts;
 
-			int datagramHeaderSize = 60;
+			int datagramHeaderSize = 100;
 			int count = (int) Math.Ceiling(encodedMessage.Length/((double) mtuSize - datagramHeaderSize));
 			int index = 0;
 			short splitId = (short) (DateTime.UtcNow.Ticks%short.MaxValue);

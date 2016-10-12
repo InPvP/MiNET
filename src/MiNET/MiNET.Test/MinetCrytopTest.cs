@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.Remoting.Metadata.W3cXsd2001;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using fNbt;
 using Jose;
+using MiNET.Blocks;
 using MiNET.Net;
 using MiNET.Utils;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using Org.BouncyCastle.Asn1.Pkcs;
 using Org.BouncyCastle.Crypto;
@@ -151,6 +153,75 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 		}
 
 		[Test]
+		public void TestJWTHandling()
+		{
+			CngKey newKey = CngKey.Create(CngAlgorithm.ECDiffieHellmanP384, null, new CngKeyCreationParameters() {ExportPolicy = CngExportPolicies.AllowPlaintextExport, KeyUsage = CngKeyUsages.AllUsages});
+
+			byte[] t = CryptoUtils.ImportECDsaCngKeyFromCngKey(newKey.Export(CngKeyBlobFormat.EccPrivateBlob));
+			CngKey tk = CngKey.Import(t, CngKeyBlobFormat.EccPrivateBlob);
+			Assert.AreEqual(CngAlgorithmGroup.ECDsa, tk.AlgorithmGroup);
+
+			ECDiffieHellmanCng ecKey = new ECDiffieHellmanCng(newKey);
+			ecKey.HashAlgorithm = CngAlgorithm.Sha256;
+			ecKey.KeyDerivationFunction = ECDiffieHellmanKeyDerivationFunction.Hash;
+
+			var b64Key = Base64Url.Encode(ecKey.PublicKey.GetDerEncoded());
+			string test = $@"
+{{ 
+	""exp"": 1464983845, 
+	""extraData"": {{ 
+		""displayName"": ""gurunx"",	
+		""identity"": ""af6f7c5e -fcea-3e43-bf3a-e005e400e578""	
+	}},	
+	""identityPublicKey"": ""{b64Key}"",
+	""nbf"": 1464983844
+}}";
+			CertificateData certificateData = new CertificateData
+			{
+				Exp = 1464983845,
+				ExtraData = new ExtraData
+				{
+					DisplayName = "gurun",
+					Identity = "af6f7c5e -fcea-3e43-bf3a-e005e400e578",
+
+				},
+				IdentityPublicKey = b64Key,
+				Nbf = 1464983844,
+			};
+
+			JWT.JsonMapper = new NewtonsoftMapper();
+
+			string val = JWT.Encode(certificateData, tk, JwsAlgorithm.ES384, new Dictionary<string, object> {{"x5u", b64Key}});
+			Console.WriteLine(val);
+
+			Assert.AreEqual(b64Key, JWT.Headers(val)["x5u"]);
+			//Assert.AreEqual("", string.Join(";", JWT.Headers(val)));
+			//Assert.AreEqual(test, JWT.Payload(val));
+
+			Console.WriteLine(JWT.Payload(val));
+
+
+			IDictionary<string, dynamic> headers = JWT.Headers(val);
+			if (headers.ContainsKey("x5u"))
+			{
+				string certString = headers["x5u"];
+
+				// Validate
+				CngKey importKey = CryptoUtils.ImportECDsaCngKeyFromString(certString);
+				CertificateData data = JWT.Decode<CertificateData>(val, importKey);
+				Assert.NotNull(data);
+				Assert.AreEqual(certificateData.Exp, data.Exp);
+				Assert.AreEqual(certificateData.IdentityPublicKey, data.IdentityPublicKey);
+				Assert.AreEqual(certificateData.Nbf, data.Nbf);
+				Assert.NotNull(data.ExtraData);
+				Assert.AreEqual(certificateData.ExtraData.DisplayName, data.ExtraData.DisplayName);
+				Assert.AreEqual(certificateData.ExtraData.Identity, data.ExtraData.Identity);
+			}
+
+		}
+
+
+		[Test]
 		public void TestDecrytp()
 		{
 			//for (int i = 0; i < 10000; i++)
@@ -208,12 +279,12 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 						msDecrypt.Position = 0;
 						using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
 						{
-
 							byte[] result1 = new byte[17];
 							csDecrypt.Read(result1, 0, 17);
 
 							msDecrypt.Position = 0;
-							msDecrypt.SetLength(0); ;
+							msDecrypt.SetLength(0);
+							;
 
 							msDecrypt.Write(buffer2, 0, buffer2.Length);
 							msDecrypt.Position = 0;
@@ -248,7 +319,6 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 						msDecrypt.Position = 0;
 						using (CryptoStream csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
 						{
-
 							byte[] result1 = new byte[buffer1.Length];
 							csDecrypt.Read(result1, 0, result1.Length);
 
@@ -276,6 +346,7 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 				}
 			}
 		}
+
 		[Test]
 		public void TestUuidConvert()
 		{
@@ -284,7 +355,7 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 			Assert.AreEqual(new Guid("af6f7c5e-fcea-3e43-bf3a-e005e400e578").ToString(), "af6f7c5e-fcea-3e43-bf3a-e005e400e578");
 		}
 
-		[Test]
+		[Test, Ignore]
 		public void TestRealDecrytp()
 		{
 			// YFtS5MGIU/UQ2w2n3RdqMoBcHOzqEQqISOyKD+W9Prk=
@@ -388,6 +459,19 @@ PU9A3CHMdEcdw/MEAjBBO1lId8KOCh9UZunsSMfqXiVurpzmhWd6VYZ/32G+M+Mh
 			}
 
 			return messages;
+		}
+
+		[Test]
+		public void RoundTripTest()
+		{
+			string serverKey = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAElakYLA/xXdxMgBY+A6v/hOca33Lnz1Dr56XQuTOUdWN6z8mbg5DjoBL+hc3t4gG+GdIGLcBew+56UJRfm313HZIhR6zpNnhqyA9GJsbCsBTq1D3A2zp+jpUZmrzuQBR/";
+
+			ECDiffieHellmanPublicKey publicKey = CryptoUtils.CreateEcDiffieHellmanPublicKey(serverKey);
+
+			string b64Key = Convert.ToBase64String(publicKey.GetDerEncoded());
+
+			Assert.AreEqual(serverKey, b64Key);
+
 		}
 	}
 }

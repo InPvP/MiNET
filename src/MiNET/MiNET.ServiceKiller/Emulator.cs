@@ -21,13 +21,12 @@ namespace MiNET.ServiceKiller
 		//private const int RequestChunkRadius = 8;
 
 
-		//private const int TimeBetweenSpawns = 280;
 		private const int TimeBetweenSpawns = 350;
-		private const int DurationOfConnection = 120*1000;
-		private const int NumberOfBots = 2000;
+		private static readonly TimeSpan DurationOfConnection = TimeSpan.FromMinutes(30);
+		private const int NumberOfBots = 200;
 		private const int RanSleepMin = 150;
 		private const int RanSleepMax = 450;
-		private const int RequestChunkRadius = 8;
+		private const int RequestChunkRadius = 5;
 
 		private static bool _running = true;
 
@@ -39,36 +38,52 @@ namespace MiNET.ServiceKiller
 
 		private static void Main(string[] args)
 		{
-			AppDomain.CurrentDomain.UnhandledException += CurrentDomainOnUnhandledException;
-			Console.WriteLine("Press <Enter> to start emulation...");
-			Console.ReadLine();
-
-			ThreadPool.SetMinThreads(1000, 1000);
-
-			Emulator emulator = new Emulator {Running = true};
-			Stopwatch watch = new Stopwatch();
-			watch.Start();
-
-			long start = DateTime.UtcNow.Ticks;
-
-			IPEndPoint endPoint = new IPEndPoint(IPAddress.Loopback, 19132);
-
-			for (int j = 0; j < NumberOfBots; j++)
+			try
 			{
-				string playerName = $"TheGrey{j + 1:D3}";
+				AppDomain.CurrentDomain.UnhandledException += CurrentDomainOnUnhandledException;
+				Console.WriteLine("Press <Enter> to start emulation...");
+				Console.ReadLine();
 
-				ClientEmulator client = new ClientEmulator(emulator, DurationOfConnection,
-					playerName, (int) (DateTime.UtcNow.Ticks - start), endPoint,
-					RanSleepMin, RanSleepMax, RequestChunkRadius);
+				//int threads;
+				//int iothreads;
 
-				ThreadPool.QueueUserWorkItem(delegate { client.EmulateClient(); });
+				//ThreadPool.GetMaxThreads(out threads, out iothreads);
+				//ThreadPool.SetMaxThreads(threads, 4000);
 
-				Thread.Sleep(TimeBetweenSpawns);
+				//ThreadPool.GetMinThreads(out threads, out iothreads);
+				//ThreadPool.SetMinThreads(4000, 4000);
+
+				DedicatedThreadPool threadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
+
+				Emulator emulator = new Emulator {Running = true};
+				Stopwatch watch = new Stopwatch();
+				watch.Start();
+
+				long start = DateTime.UtcNow.Ticks;
+
+				IPEndPoint endPoint = new IPEndPoint(IPAddress.Loopback, 19132);
+
+				for (int j = 0; j < NumberOfBots; j++)
+				{
+					string playerName = $"TheGrey{j + 1:D3}";
+
+					ClientEmulator client = new ClientEmulator(threadPool, emulator, DurationOfConnection,
+						playerName, (int) (DateTime.UtcNow.Ticks - start), endPoint,
+						RanSleepMin, RanSleepMax, RequestChunkRadius);
+
+					new Thread(o => { client.EmulateClient(); }) {IsBackground = true}.Start();
+
+					Thread.Sleep(TimeBetweenSpawns);
+				}
+
+				Console.WriteLine("Press <enter> to stop all clients.");
+				Console.ReadLine();
+				emulator.Running = false;
 			}
-
-			Console.WriteLine("Press <enter> to stop all clients.");
-			Console.ReadLine();
-			emulator.Running = false;
+			catch (Exception e)
+			{
+				Console.WriteLine(e);
+			}
 
 			Console.WriteLine("Emulation complete. Press <enter> to exit.");
 			Console.ReadLine();
@@ -82,6 +97,8 @@ namespace MiNET.ServiceKiller
 
 	public class ClientEmulator
 	{
+		private readonly DedicatedThreadPool _threadPool;
+
 		public int RanMin { get; set; }
 		public int RanMax { get; set; }
 		public int ChunkRadius { get; set; }
@@ -93,10 +110,11 @@ namespace MiNET.ServiceKiller
 		public string Name { get; set; }
 		public int ClientId { get; set; }
 		public Random Random { get; set; } = new Random();
-		public long TimeToRun { get; set; }
+		public TimeSpan TimeToRun { get; set; }
 
-		public ClientEmulator(Emulator emulator, long timeToRun, string name, int clientId, IPEndPoint endPoint, int ranMin = 150, int ranMax = 450, int chunkRadius = 8)
+		public ClientEmulator(DedicatedThreadPool threadPool, Emulator emulator, TimeSpan timeToRun, string name, int clientId, IPEndPoint endPoint, int ranMin = 150, int ranMax = 450, int chunkRadius = 8)
 		{
+			_threadPool = threadPool;
 			Emulator = emulator;
 			TimeToRun = timeToRun;
 			Name = name;
@@ -111,9 +129,13 @@ namespace MiNET.ServiceKiller
 		{
 			try
 			{
-				Console.WriteLine("Client {0} connecting...", Name);
+				int threads;
+				int iothreads;
+				ThreadPool.GetAvailableThreads(out threads, out iothreads);
 
-				var client = new MiNetClient(EndPoint, Name);
+				Console.WriteLine("Client {0} connecting... Worker: {1}, IOC: {2}", Name, threads, iothreads);
+
+				var client = new MiNetClient(EndPoint, Name, _threadPool);
 				client.ChunkRadius = ChunkRadius;
 				client.IsEmulator = true;
 				client.ClientId = ClientId;
@@ -124,15 +146,34 @@ namespace MiNET.ServiceKiller
 				client.HaveServer = true;
 				client.SendOpenConnectionRequest1();
 
-				Thread.Sleep(2000);
+				//client.FirstPacketWaitHandle.WaitOne();
+				//client.FirstEncryptedPacketWaitHandle.WaitOne();
+				client.PlayerStatusChangedWaitHandle.WaitOne();
 
-				client.LoginSent = true;
+				if (client.UdpClient != null) Console.WriteLine("\t\t\t\t\t\tClient {0} connected, emulating...", Name);
 
 				Stopwatch watch = new Stopwatch();
 				watch.Start();
-				if (client.UdpClient != null) Console.WriteLine("\t\t\t\t\t\tClient {0} moving...", Name);
 
-				for (int i = 0; /*i < 10 && */Emulator.Running && watch.ElapsedMilliseconds < TimeToRun; i++)
+				Thread.Sleep(3000);
+
+				//client.SendChat("/join bb");
+				//client.SendChat("/join skywars");
+
+				//Thread.Sleep(TimeToRun);
+
+				//if (client.CurrentLocation != null)
+				//{
+				//	client.CurrentLocation = new PlayerLocation(client.CurrentLocation.X, -10, client.CurrentLocation.Z);
+				//	client.SendMcpeMovePlayer();
+				//	Thread.Sleep(3000);
+				//}
+
+				//client.SendChat("/hub");
+
+				//Thread.Sleep(3000);
+
+				for (int i = 0; /*i < 10 && */Emulator.Running && watch.Elapsed < TimeToRun; i++)
 				{
 					if (client.UdpClient == null) break;
 
@@ -156,18 +197,26 @@ namespace MiNET.ServiceKiller
 
 						client.CurrentLocation = new PlayerLocation(x, y, z);
 						client.SendMcpeMovePlayer();
-						Thread.Sleep(Random.Next(RanMin, RanMax));
+
+						int timeout;
+						if (RanMax == RanMax)
+							timeout = RanMin;
+						else
+							timeout = Random.Next(RanMin, RanMax);
+
+						if(timeout > 0) Thread.Sleep(timeout);
 						angle += angleStepsize;
 					}
 				}
 
 				if (client.UdpClient != null)
 				{
-					Console.WriteLine($"{watch.ElapsedMilliseconds} Client stopping. {client.UdpClient == null}, {Emulator.Running}");
+					//client.SendChat("Shadow gov agent BREXITING!");
 					client.SendDisconnectionNotification();
 				}
 
 				client.StopClient();
+				Console.WriteLine($"{watch.ElapsedMilliseconds} Client stopped. {client.UdpClient == null}, {Emulator.Running}");
 			}
 			catch (Exception e)
 			{

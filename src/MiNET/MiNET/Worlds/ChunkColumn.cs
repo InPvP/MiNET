@@ -6,7 +6,6 @@ using System.IO.Compression;
 using System.Linq;
 using fNbt;
 using log4net;
-using Microsoft.IO;
 using MiNET.Net;
 using MiNET.Utils;
 
@@ -264,20 +263,12 @@ namespace MiNET.Worlds
 				fullChunkData.chunkZ = z;
 				fullChunkData.order = 0;
 				fullChunkData.chunkData = GetBytes();
-				fullChunkData.chunkDataLength = fullChunkData.chunkData.Length;
 				byte[] bytes = fullChunkData.Encode();
 				fullChunkData.PutPool();
 
-				MemoryStream memStream = MiNetServer.MemoryStreamManager.GetStream();
-				memStream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-				memStream.Write(bytes, 0, bytes.Length);
-
-				McpeBatch batch = McpeBatch.CreateObject();
-				byte[] buffer = Player.CompressBytes(memStream.ToArray(), CompressionLevel.Optimal);
-				batch.payloadSize = buffer.Length;
-				batch.payload = buffer;
-				batch.Encode();
+				var batch = BatchUtils.CreateBatchPacket(bytes, 0, bytes.Length, CompressionLevel.Optimal, true);
 				batch.MarkPermanent();
+				batch.Encode();
 
 				_cachedBatch = batch;
 				_cache = null;
@@ -292,7 +283,7 @@ namespace MiNET.Worlds
 		{
 			if (_cache != null) return _cache;
 
-			MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream();
+			using (MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream())
 			{
 				NbtBinaryWriter writer = new NbtBinaryWriter(stream, true);
 
@@ -321,27 +312,20 @@ namespace MiNET.Worlds
 
 				if (BlockEntities.Count == 0)
 				{
-					NbtFile file = new NbtFile(new NbtCompound(string.Empty)) {BigEndian = false};
+					NbtFile file = new NbtFile(new NbtCompound(string.Empty)) { BigEndian = false };
 					file.SaveToStream(writer.BaseStream, NbtCompression.None);
 				}
 				else
 				{
 					foreach (NbtCompound blockEntity in BlockEntities.Values.ToArray())
 					{
-						NbtFile file = new NbtFile(blockEntity) {BigEndian = false};
+						NbtFile file = new NbtFile(blockEntity) {BigEndian = false, UseVarInt = true};
 						file.SaveToStream(writer.BaseStream, NbtCompression.None);
 					}
 				}
 
-				writer.Flush();
-
 				_cache = stream.ToArray();
-
-				writer.Close();
 			}
-
-			stream.Close();
-
 			return _cache;
 		}
 
@@ -389,7 +373,6 @@ namespace MiNET.Worlds
 
 			//private McpeBatch _cachedBatch = null;
 			McpeBatch batch = McpeBatch.CreateObject();
-			batch.payloadSize = _cachedBatch.payloadSize;
 			batch.payload = _cachedBatch.payload;
 			batch.Encode();
 			batch.MarkPermanent();

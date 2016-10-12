@@ -81,7 +81,7 @@ namespace TestPlugin.NiceLobby
 			Player player = eventArgs.Player;
 			if (player == null) throw new ArgumentNullException(nameof(eventArgs.Player));
 
-			level.BroadcastMessage($"{ChatColors.Gold}[{ChatColors.Green}+{ChatColors.Gold}]{ChatFormatting.Reset} {player.Username}");
+			level.BroadcastMessage($"{ChatColors.Gold}[{ChatColors.Green}+{ChatColors.Gold}]{ChatFormatting.Reset} {player.Username} {DateTime.UtcNow.Ticks}");
 		}
 
 		private void LevelOnBlockBreak(object sender, BlockBreakEventArgs e)
@@ -123,7 +123,7 @@ namespace TestPlugin.NiceLobby
 					McpeSetTime timeDay = McpeSetTime.CreateObject();
 					timeDay.time = 0;
 					timeDay.started = 1;
-					level.RelayBroadcast(timeDay, true);
+					level.RelayBroadcast(timeDay);
 
 					ThreadPool.QueueUserWorkItem(delegate(object o)
 					{
@@ -132,39 +132,33 @@ namespace TestPlugin.NiceLobby
 						McpeSetTime timeReset = McpeSetTime.CreateObject();
 						timeReset.time = (int) level.CurrentWorldTime;
 						timeReset.started = (byte) (level.IsWorldTimeStarted ? 1 : 0);
-						level.RelayBroadcast(timeDay, true);
+						level.RelayBroadcast(timeDay);
 
 						Thread.Sleep(200);
 
 						{
 							var mcpeExplode = McpeExplode.CreateObject();
-							mcpeExplode.x = point1.X;
-							mcpeExplode.y = point1.Y;
-							mcpeExplode.z = point1.Z;
+							mcpeExplode.position = point1.ToVector3();
 							mcpeExplode.radius = 100;
 							mcpeExplode.records = new Records();
-							level.RelayBroadcast(mcpeExplode, true);
+							level.RelayBroadcast(mcpeExplode);
 						}
 
 						Thread.Sleep(250);
 						{
 							var mcpeExplode = McpeExplode.CreateObject();
-							mcpeExplode.x = point2.X;
-							mcpeExplode.y = point2.Y;
-							mcpeExplode.z = point2.Z;
+							mcpeExplode.position = point2.ToVector3();
 							mcpeExplode.radius = 100;
 							mcpeExplode.records = new Records();
-							level.RelayBroadcast(mcpeExplode, true);
+							level.RelayBroadcast(mcpeExplode);
 						}
 						Thread.Sleep(250);
 						{
 							var mcpeExplode = McpeExplode.CreateObject();
-							mcpeExplode.x = point3.X;
-							mcpeExplode.y = point3.Y;
-							mcpeExplode.z = point3.Z;
+							mcpeExplode.position = point3.ToVector3();
 							mcpeExplode.radius = 100;
 							mcpeExplode.records = new Records();
-							level.RelayBroadcast(mcpeExplode, true);
+							level.RelayBroadcast(mcpeExplode);
 						}
 					});
 				}
@@ -290,12 +284,23 @@ namespace TestPlugin.NiceLobby
 
 		private string GetNameTag(Player player)
 		{
-			return GetNameTag(player.Username);
-		}
+			string username = player.Username;
 
-		private string GetNameTag(string username)
-		{
-			string rank = username.StartsWith("gurun") || username.StartsWith("Oliver") ? $"{ChatColors.Red}[ADMIN]" : $"{ChatColors.LightPurple}[VIP]";
+			string rank;
+			//if (username.StartsWith("gurun") || username.StartsWith("Oliver"))
+			//{
+			//	rank = $"{ChatColors.Red}[ADMIN]";
+			//}
+			//else 
+			if (player.CertificateData.ExtraData.Xuid != null)
+			{
+				rank = $"{ChatColors.Green}[XBOX]";
+			}
+			else
+			{
+				rank = $"{ChatColors.White}";
+			}
+
 			return $"{rank} {username}";
 		}
 
@@ -548,8 +553,8 @@ namespace TestPlugin.NiceLobby
 				var entity = _playerEntities[player];
 				entity.KnownPosition = player.KnownPosition;
 				var message = McpeMoveEntity.CreateObject();
-				message.entities = new EntityLocations();
-				message.entities.Add(entity.EntityId, entity.KnownPosition);
+				message.entityId = entity.EntityId;
+				message.position = entity.KnownPosition;
 				player.Level.RelayBroadcast(message);
 			}
 
@@ -802,15 +807,8 @@ namespace TestPlugin.NiceLobby
 
 		internal static McpeBatch CreateMcpeBatch(byte[] bytes)
 		{
-			MemoryStream memStream = MiNetServer.MemoryStreamManager.GetStream();
-			memStream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-			memStream.Write(bytes, 0, bytes.Length);
-
-			McpeBatch batch = McpeBatch.CreateObject();
-			byte[] buffer = Player.CompressBytes(memStream.ToArray(), CompressionLevel.Optimal);
+			McpeBatch batch = BatchUtils.CreateBatchPacket(bytes, 0, (int) bytes.Length, CompressionLevel.Optimal, true);
 			batch.MarkPermanent();
-			batch.payloadSize = buffer.Length;
-			batch.payload = buffer;
 			batch.Encode();
 			return batch;
 		}

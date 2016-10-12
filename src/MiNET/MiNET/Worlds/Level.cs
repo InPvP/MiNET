@@ -106,7 +106,10 @@ namespace MiNET.Worlds
 
 			StartTimeInTicks = DateTime.UtcNow.Ticks;
 
-			//_levelTicker = new Timer(WorldTick, null, 0, _worldTickTime); // MC worlds tick-time
+			_tickTimer = new Stopwatch();
+			_tickTimer.Restart();
+			//_levelTicker = new Timer(WorldTick, null, 50, _worldTickTime); // MC worlds tick-time
+
 
 			//_tickerThread = new Thread(RunWorldTick);
 			//_tickerThread.Priority = ThreadPriority.Highest;
@@ -114,16 +117,23 @@ namespace MiNET.Worlds
 			//_tickerThread.Start();
 			//_tickerThreadTimer.Start();
 
-			_tickerHighPrecisionTimer = new HighPrecisionTimer(50);
-			_tickerHighPrecisionTimer.Tick += _tickerHighPrecisionTimer_Tick;
+			_tickerHighPrecisionTimer = new HighPrecisionTimer(50, WorldTick);
+			//_mmTickTimer = new MultiMediaTimer();
+			//_mmTickTimer.Mode = TimerMode.Periodic;
+			//_mmTickTimer.Period = 50;
+			//_mmTickTimer.Resolution = 1;
+			//_mmTickTimer.SynchronizingObject = null;
+			//_mmTickTimer.Tick += WorldTick;
+			//_mmTickTimer.Start();
 		}
 
-		private void _tickerHighPrecisionTimer_Tick(object sender, HighPrecisionTimer.TickEventArgs e)
+		private void _tickerHighPrecisionTimer_Tick()
 		{
 			WorldTick(null);
 		}
 
 		private HighPrecisionTimer _tickerHighPrecisionTimer;
+		private MultiMediaTimer _mmTickTimer = null;
 
 		public void Close()
 		{
@@ -171,16 +181,7 @@ namespace MiNET.Worlds
 
 		internal static McpeBatch CreateMcpeBatch(byte[] bytes)
 		{
-			MemoryStream memStream = MiNetServer.MemoryStreamManager.GetStream();
-			memStream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-			memStream.Write(bytes, 0, bytes.Length);
-
-			McpeBatch batch = McpeBatch.CreateObject();
-			byte[] buffer = Player.CompressBytes(memStream.ToArray(), CompressionLevel.Optimal);
-			batch.payloadSize = buffer.Length;
-			batch.payload = buffer;
-			batch.Encode();
-			return batch;
+			return BatchUtils.CreateBatchPacket(bytes, 0, (int) bytes.Length, CompressionLevel.Optimal, true);
 		}
 
 		private object _playerWriteLock = new object();
@@ -222,7 +223,6 @@ namespace MiNET.Worlds
 
 				Player[] players = GetSpawnedPlayers();
 				List<Player> spawnedPlayers = players.ToList();
-				spawnedPlayers.Add(newPlayer);
 
 				Player[] sendList = spawnedPlayers.ToArray();
 
@@ -333,31 +333,49 @@ namespace MiNET.Worlds
 			//}
 		}
 
-		public virtual void BroadcastMessage(string text, MessageType type = MessageType.Chat, Player sender = null)
+		public virtual void BroadcastMessage(string text, MessageType type = MessageType.Chat, Player sender = null, Player[] sendList = null)
 		{
-			foreach (var line in text.Split('\n'))
+			if (type == MessageType.Chat || type == MessageType.Raw)
+			{
+				foreach (var line in text.Split(new string[] {"\n", Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries))
+				{
+					McpeText message = McpeText.CreateObject();
+					message.type = (byte) type;
+					message.source = sender == null ? "" : sender.Username;
+					message.message = line;
+					RelayBroadcast(sendList, message);
+				}
+			}
+			else
 			{
 				McpeText message = McpeText.CreateObject();
 				message.type = (byte) type;
 				message.source = sender == null ? "" : sender.Username;
-				message.message = line;
-
-				RelayBroadcast(message);
+				message.message = text;
+				RelayBroadcast(sendList, message);
 			}
 		}
 
-
 		private object _tickSync = new object();
-		private Stopwatch _tickTimer = new Stopwatch();
+		private Stopwatch _tickTimer = Stopwatch.StartNew();
 		public long LastTickProcessingTime = 0;
 		public long AvarageTickProcessingTime = 50;
 		public int PlayerCount { get; private set; }
 
+		private void WorldTick(object sender, EventArgs e)
+		{
+			WorldTick(null);
+		}
+
 		private void WorldTick(object sender)
 		{
-			if (!Monitor.TryEnter(_tickSync)) return;
+			if (_tickTimer.ElapsedMilliseconds < 40)
+			{
+				if (Log.IsDebugEnabled) Log.Warn($"World tick came too fast: {_tickTimer.ElapsedMilliseconds} ms");
+				return;
+			}
 
-			//if (_tickTimer.ElapsedMilliseconds > 51) Log.Warn($"World tick late: {_tickTimer.ElapsedMilliseconds} ms");
+			if (Log.IsDebugEnabled && _tickTimer.ElapsedMilliseconds >= 100) Log.Error($"Time between World tick too too long: {_tickTimer.ElapsedMilliseconds} ms");
 
 			_tickTimer.Restart();
 			try
@@ -425,14 +443,16 @@ namespace MiNET.Worlds
 				//	}
 				//}
 
-				//if (_tickTimer.ElapsedMilliseconds >= 50) Log.Error($"World tick too too long: {_tickTimer.ElapsedMilliseconds} ms");
+				if (Log.IsDebugEnabled && _tickTimer.ElapsedMilliseconds >= 50) Log.Error($"World tick too too long: {_tickTimer.ElapsedMilliseconds} ms");
+			}
+			catch (Exception e)
+			{
+				Log.Error("World ticking", e);
 			}
 			finally
 			{
 				LastTickProcessingTime = _tickTimer.ElapsedMilliseconds;
 				AvarageTickProcessingTime = ((AvarageTickProcessingTime*9) + _tickTimer.ElapsedMilliseconds)/10L;
-
-				Monitor.Exit(_tickSync);
 			}
 		}
 
@@ -460,105 +480,107 @@ namespace MiNET.Worlds
 		}
 
 		private DateTime _lastSendTime = DateTime.UtcNow;
+		private DateTime _lastBroadcast = DateTime.UtcNow;
 
 		protected virtual void BroadCastMovement(Player[] players, Entity[] entities)
 		{
+			DateTime now = DateTime.UtcNow;
+
 			if (players.Length == 0) return;
+
+			if (players.Length <= 1 && entities.Length == 0) return;
+
+			if (now - _lastBroadcast < TimeSpan.FromMilliseconds(50)) return;
 
 			DateTime tickTime = _lastSendTime;
 			_lastSendTime = DateTime.UtcNow;
-			DateTime now = DateTime.UtcNow;
 
-			MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream();
-
-			int count = 0;
-			McpeMovePlayer move = McpeMovePlayer.CreateObject();
-			foreach (var player in players)
+			using (MemoryStream stream = MiNetServer.MemoryStreamManager.GetStream())
 			{
-				if (((now - player.LastUpdatedTime) <= now - tickTime))
+				int playerMoveCount = 0;
+				int entiyMoveCount = 0;
+
+				foreach (var player in players)
 				{
-					PlayerLocation knownPosition = player.KnownPosition;
+					if (now - player.LastUpdatedTime <= now - tickTime)
+					{
+						PlayerLocation knownPosition = player.KnownPosition;
 
-					move.entityId = player.EntityId;
-					move.x = knownPosition.X;
-					move.y = knownPosition.Y + 1.62f;
-					move.z = knownPosition.Z;
-					move.yaw = knownPosition.Yaw;
-					move.pitch = knownPosition.Pitch;
-					move.headYaw = knownPosition.HeadYaw;
-					move.mode = 0;
-					byte[] bytes = move.Encode();
-					stream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-					stream.Write(bytes, 0, bytes.Length);
-					move.Reset();
-					count++;
+						McpeMovePlayer move = McpeMovePlayer.CreateObject();
+						move.entityId = player.EntityId;
+						move.x = knownPosition.X;
+						move.y = knownPosition.Y + 1.62f;
+						move.z = knownPosition.Z;
+						move.yaw = knownPosition.Yaw;
+						move.pitch = knownPosition.Pitch;
+						move.headYaw = knownPosition.HeadYaw;
+						move.mode = 0;
+						byte[] bytes = move.Encode();
+						BatchUtils.WriteLenght(stream, bytes.Length);
+						stream.Write(bytes, 0, bytes.Length);
+						move.PutPool();
+						playerMoveCount++;
+					}
 				}
-			}
-			move.PutPool();
 
-			McpeMoveEntity moveEntity = McpeMoveEntity.CreateObject();
-			moveEntity.entities = new EntityLocations();
-
-			McpeSetEntityMotion entityMotion = McpeSetEntityMotion.CreateObject();
-			entityMotion.entities = new EntityMotions();
-
-			foreach (var entity in entities)
-			{
-				if (((now - entity.LastUpdatedTime) <= now - tickTime))
+				foreach (var entity in entities)
 				{
-					moveEntity.entities.Add(entity.EntityId, entity.KnownPosition);
-					entityMotion.entities.Add(entity.EntityId, entity.Velocity);
-					count++;
+					if (now - entity.LastUpdatedTime <= now - tickTime)
+					{
+						{
+							McpeMoveEntity moveEntity = McpeMoveEntity.CreateObject();
+							moveEntity.entityId = entity.EntityId;
+							moveEntity.position = entity.KnownPosition;
+							byte[] bytes = moveEntity.Encode();
+							BatchUtils.WriteLenght(stream, bytes.Length);
+							stream.Write(bytes, 0, bytes.Length);
+							moveEntity.PutPool();
+						}
+						{
+							McpeSetEntityMotion entityMotion = McpeSetEntityMotion.CreateObject();
+							entityMotion.entityId = entity.EntityId;
+							entityMotion.velocity = entity.Velocity;
+							byte[] bytes = entityMotion.Encode();
+							BatchUtils.WriteLenght(stream, bytes.Length);
+							stream.Write(bytes, 0, bytes.Length);
+							entityMotion.PutPool();
+						}
+						entiyMoveCount++;
+					}
 				}
-			}
 
-			if (moveEntity.entities.Count > 0)
-			{
-				byte[] bytes = moveEntity.Encode();
-				stream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-				stream.Write(bytes, 0, bytes.Length);
-			}
-			moveEntity.PutPool();
+				if (playerMoveCount == 0 && entiyMoveCount == 0) return;
 
-			if (moveEntity.entities.Count > 0)
-			{
-				byte[] bytes = entityMotion.Encode();
-				stream.Write(BitConverter.GetBytes(Endian.SwapInt32(bytes.Length)), 0, 4);
-				stream.Write(bytes, 0, bytes.Length);
-			}
-			entityMotion.PutPool();
+				if (players.Length == 1 && entiyMoveCount == 0) return;
 
-			if (count == 0) return;
-
-			McpeBatch batch = McpeBatch.CreateObject(players.Length);
-			byte[] buffer = Player.CompressBytes(stream.ToArray(), CompressionLevel.Optimal);
-			batch.payloadSize = buffer.Length;
-			batch.payload = buffer;
-			batch.Encode();
-
-			foreach (var player in players)
-			{
-				Task sendTask = new Task(obj => ((Player) obj).SendMoveList(batch, now), player);
-				sendTask.Start();
+				McpeBatch batch = BatchUtils.CreateBatchPacket(stream.GetBuffer(), 0, (int) stream.Length, CompressionLevel.Optimal, false);
+				batch.AddReferences(players.Length - 1);
+				batch.Encode();
+				batch.ValidUntil = now + TimeSpan.FromMilliseconds(50);
+				foreach (var player in players)
+				{
+					MiNetServer.FastThreadPool.QueueUserWorkItem(() => player.SendPackage(batch));
+				}
+				_lastBroadcast = DateTime.UtcNow;
 			}
 		}
 
-		public void RelayBroadcast<T>(T message, bool sendDirect = false) where T : Package<T>, new()
+		public void RelayBroadcast<T>(T message) where T : Package<T>, new()
 		{
-			RelayBroadcast(null, GetSpawnedPlayers(), message, sendDirect);
+			RelayBroadcast(null, GetSpawnedPlayers(), message);
 		}
 
-		public void RelayBroadcast<T>(Player source, T message, bool sendDirect = false) where T : Package<T>, new()
+		public void RelayBroadcast<T>(Player source, T message) where T : Package<T>, new()
 		{
-			RelayBroadcast(source, GetSpawnedPlayers(), message, sendDirect);
+			RelayBroadcast(source, GetSpawnedPlayers(), message);
 		}
 
-		public void RelayBroadcast<T>(Player[] sendList, T message, bool sendDirect = false) where T : Package<T>, new()
+		public void RelayBroadcast<T>(Player[] sendList, T message) where T : Package<T>, new()
 		{
-			RelayBroadcast(null, sendList, message, sendDirect);
+			RelayBroadcast(null, sendList ?? GetSpawnedPlayers(), message);
 		}
 
-		public void RelayBroadcast<T>(Player source, Player[] sendList, T message, bool sendDirect = false) where T : Package<T>, new()
+		public void RelayBroadcast<T>(Player source, Player[] sendList, T message) where T : Package<T>, new()
 		{
 			if (message == null) return;
 
@@ -711,14 +733,10 @@ namespace MiNET.Worlds
 
 			if (!broadcast) return;
 
-			Block sendBlock = new Block(block.Id)
-			{
-				Coordinates = block.Coordinates,
-				Metadata = (byte) (0xb << 4 | (block.Metadata & 0xf))
-			};
-
 			var message = McpeUpdateBlock.CreateObject();
-			message.blocks = new BlockRecords {sendBlock};
+			message.blockId = block.Id;
+			message.coordinates = block.Coordinates;
+			message.blockMetaAndPriority = (byte) (0xb << 4 | (block.Metadata & 0xf));
 			RelayBroadcast(message);
 		}
 
@@ -738,9 +756,9 @@ namespace MiNET.Worlds
 				return blockEntity;
 			}
 
-
 			ChunkColumn chunk = _worldProvider.GenerateChunkColumn(new ChunkCoordinates(blockCoordinates.X >> 4, blockCoordinates.Z >> 4));
-			NbtCompound nbt = chunk.GetBlockEntity(blockCoordinates);
+
+			NbtCompound nbt = chunk?.GetBlockEntity(blockCoordinates);
 			if (nbt == null) return null;
 
 			string id = null;
@@ -753,6 +771,8 @@ namespace MiNET.Worlds
 			if (string.IsNullOrEmpty(id)) return null;
 
 			blockEntity = BlockEntityFactory.GetBlockEntityById(id);
+			if (blockEntity == null) return null;
+
 			blockEntity.Coordinates = blockCoordinates;
 			blockEntity.SetCompound(nbt);
 
@@ -779,9 +799,7 @@ namespace MiNET.Worlds
 
 			var entityData = McpeBlockEntityData.CreateObject();
 			entityData.namedtag = nbt;
-			entityData.x = blockEntity.Coordinates.X;
-			entityData.y = (byte) blockEntity.Coordinates.Y;
-			entityData.z = blockEntity.Coordinates.Z;
+			entityData.coordinates = blockEntity.Coordinates;
 
 			RelayBroadcast(entityData);
 		}
@@ -840,16 +858,12 @@ namespace MiNET.Worlds
 				{
 					// Revert
 
-					Block sendBlock = new Block(block.Id)
-					{
-						Coordinates = block.Coordinates,
-						Metadata = (byte) (0xb << 4 | (block.Metadata & 0xf))
-					};
-
 					player.SendPlayerInventory();
 
 					var message = McpeUpdateBlock.CreateObject();
-					message.blocks = new BlockRecords {sendBlock};
+					message.blockId = block.Id;
+					message.coordinates = block.Coordinates;
+					message.blockMetaAndPriority = (byte) (0xb << 4 | (block.Metadata & 0xf));
 					player.SendPackage(message);
 
 					return;
@@ -880,14 +894,10 @@ namespace MiNET.Worlds
 			{
 				// Revert
 
-				Block sendBlock = new Block(block.Id)
-				{
-					Coordinates = block.Coordinates,
-					Metadata = (byte) (0xb << 4 | (block.Metadata & 0xf))
-				};
-
 				var message = McpeUpdateBlock.CreateObject();
-				message.blocks = new BlockRecords {sendBlock};
+				message.blockId = block.Id;
+				message.coordinates = block.Coordinates;
+				message.blockMetaAndPriority = (byte) (0xb << 4 | (block.Metadata & 0xf));
 				player.SendPackage(message);
 
 				// Revert block entity if exists
@@ -904,9 +914,7 @@ namespace MiNET.Worlds
 
 					var entityData = McpeBlockEntityData.CreateObject();
 					entityData.namedtag = nbt;
-					entityData.x = blockEntity.Coordinates.X;
-					entityData.y = (byte) blockEntity.Coordinates.Y;
-					entityData.z = blockEntity.Coordinates.Z;
+					entityData.coordinates = blockEntity.Coordinates;
 
 					player.SendPackage(entityData);
 				}

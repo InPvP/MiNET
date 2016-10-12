@@ -6,6 +6,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using fNbt;
 using log4net;
 using MiNET;
@@ -204,7 +205,6 @@ namespace TestPlugin
 			{
 				// 128 = 32 + 32 + 32
 				var msg = McpeSpawnExperienceOrb.CreateObject();
-				msg.entityId = player.EntityId;
 				msg.x = (int) (player1.KnownPosition.X + 1);
 				msg.y = (int) (player1.KnownPosition.Y + 2);
 				msg.z = (int) (player1.KnownPosition.Z + 1);
@@ -252,6 +252,8 @@ namespace TestPlugin
 		[Command(Command = "tp")]
 		public void Teleport(Player player, string world)
 		{
+			Level oldLevel = player.Level;
+
 			if (player.Level.LevelId.Equals(world))
 			{
 				Teleport(player, (int) player.SpawnPosition.X, (int) player.SpawnPosition.Y, (int) player.SpawnPosition.Z);
@@ -269,18 +271,22 @@ namespace TestPlugin
 
 				if (levels != null)
 				{
-					Level nextLevel = levels.FirstOrDefault(l => l.LevelId != null && l.LevelId.Equals(world));
-
-					if (nextLevel == null)
+					player.SpawnLevel(null, null, true, delegate
 					{
-						nextLevel = new Level(world, new FlatlandWorldProvider(), player.GameMode, Difficulty.Normal);
-						nextLevel.Initialize();
-						Context.LevelManager.Levels.Add(nextLevel);
-					}
+						Level nextLevel = levels.FirstOrDefault(l => l.LevelId != null && l.LevelId.Equals(world));
 
-					player.Level.BroadcastMessage(string.Format("{0} teleported to world {1}.", player.Username, nextLevel.LevelId), type: MessageType.Raw);
+						if (nextLevel == null)
+						{
+							nextLevel = new Level(world, new FlatlandWorldProvider(), player.GameMode, Difficulty.Normal);
+							nextLevel.Initialize();
+							Context.LevelManager.Levels.Add(nextLevel);
+						}
 
-					player.SpawnLevel(nextLevel);
+						return nextLevel;
+					});
+
+					oldLevel.BroadcastMessage(string.Format("{0} teleported to world {1}.", player.Username, player.Level.LevelId), type: MessageType.Raw);
+
 				}
 			}, Context.LevelManager.Levels.ToArray());
 		}
@@ -322,7 +328,6 @@ namespace TestPlugin
 		{
 			player.SendMessage(string.Format("Username={0}", player.Username), type: MessageType.Raw);
 			player.SendMessage(string.Format("Entity ID={0}", player.EntityId), type: MessageType.Raw);
-			player.SendMessage(string.Format("Client GUID={0}", player.ClientGuid), type: MessageType.Raw);
 			player.SendMessage(string.Format("Client ID={0}", player.ClientId), type: MessageType.Raw);
 			player.SendMessage(string.Format("Client ID={0}", player.ClientUuid), type: MessageType.Raw);
 		}
@@ -475,7 +480,7 @@ namespace TestPlugin
 			//}
 
 			//inventory.Slots[c++] = new ItemItemFrame() { Count = 64 };
-			//inventory.Slots[c++] = new ItemBlock(new WoodenPlanks(), 0) { Count = 64 };
+			inventory.Slots[c++] = new ItemBlock(new Planks(), 0) { Count = 64 };
 			inventory.Slots[c++] = new ItemCompass(); // Wooden Sword
 			inventory.Slots[c++] = new ItemWoodenSword(); // Wooden Sword
 			inventory.Slots[c++] = new ItemStoneSword(); // Stone Sword
@@ -731,18 +736,6 @@ namespace TestPlugin
 			player.SendMessage($"{player.Username} set NoDamage={player.HealthManager is NoDamageHealthManager}", type: McpeText.TypeRaw);
 		}
 
-
-		[Command(Command = "s")]
-		public void Stats(Player currentPlayer)
-		{
-			var players = Context.LevelManager.Levels[0].Players.Values.ToArray();
-			currentPlayer.SendMessage("Statistics:", type: McpeText.TypeRaw);
-			foreach (var player in players)
-			{
-				currentPlayer.SendMessage(string.Format("RTT: {1:0000} User: {0}", player.Username, player.Rtt), type: McpeText.TypeRaw);
-			}
-		}
-
 		[Command(Command = "r")]
 		[Authorize(Users = "gurun")]
 		[Authorize(Users = "gurunx")]
@@ -760,12 +753,6 @@ namespace TestPlugin
 				{
 					Priority = 100, MessageType = MessageType.Popup, Message = "Transfering all players!", Duration = 20*10,
 				});
-
-				Thread.Sleep(1500);
-
-				IPHostEntry host = Dns.GetHostEntry("test.inpvp.net");
-				Context.Server.ForwardTarget = new IPEndPoint(host.AddressList[0], 19132);
-				Context.Server.ForwardAllPlayers = true;
 			}
 		}
 
@@ -792,5 +779,73 @@ namespace TestPlugin
 
 			player.OpenInventory(coor);
 		}
+
+		[Command]
+		public void Test1(Player player)
+		{
+			List<Pig> pigs = new List<Pig>();
+			for (int i = 0; i < 10; i++)
+			{
+				Pig pig = new Pig(player.Level);
+				pig.KnownPosition = (PlayerLocation)player.KnownPosition.Clone();
+				pig.SpawnEntity();
+				pigs.Add(pig);
+			}
+			player.SendMessage("Spawned pigs");
+
+			Thread.Sleep(4000);
+
+			PlayerLocation loc = (PlayerLocation)player.KnownPosition.Clone();
+			loc.Y = loc.Y + 10;
+			loc.X = loc.X + 10;
+			loc.Z = loc.Z + 10;
+
+			player.SendMessage("Moved pigs");
+
+			Thread.Sleep(4000);
+
+			foreach (var pig in pigs)
+			{
+				pig.KnownPosition = (PlayerLocation)loc.Clone();
+				pig.LastUpdatedTime = DateTime.UtcNow;
+			}
+
+			player.SendMessage("Moved ALL pigs");
+		}
+
+		[Command]
+		public void Test2(Player player)
+		{
+			PlayerLocation pos = (PlayerLocation)player.KnownPosition.Clone();
+			Task.Run(() =>
+			{
+				for (int i = 0; i < 100; i++)
+				{
+					pos.HeadYaw += 10;
+					pos.Yaw += 10;
+					player.SetPosition(pos);
+					Thread.Sleep(100);
+				}
+			});
+
+
+		}
+
+		[Command]
+		public void Count(Player player)
+		{
+			List<string> users = new List<string>();
+			var levels = Context.Server.LevelManager.Levels;
+			foreach (var level in levels)
+			{
+				foreach (var spawnedPlayer in level.GetSpawnedPlayers())
+				{
+					users.Add(spawnedPlayer.Username);
+				}
+			}
+
+			player.SendMessage($"There are {users.Count} of players online.");
+		}
+
 	}
 }

@@ -5,6 +5,8 @@ namespace MiNET.Utils
 {
 	public class CryptoContext
 	{
+		public bool UseEncryption;
+
 		public RijndaelManaged Algorithm { get; set; }
 
 		public ICryptoTransform Decryptor { get; set; }
@@ -16,5 +18,8 @@ namespace MiNET.Utils
 		public CryptoStream CryptoStreamOut { get; set; }
 
 		public long SendCounter = -1;
+
+		public CngKey ClientKey { get; set; }
+
 	}
 }
