@@ -880,6 +880,7 @@ namespace MiNET
 				}
 
 				Level?.RemovePlayer(this);
+				_openInventory?.RemoveObserver(this);
 
 				var playerSession = Session;
 				Session = null;
