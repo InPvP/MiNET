@@ -1263,13 +1263,13 @@ namespace MiNET.Net
 		//}
 
 
-		~Package()
+		/*~Package()
 		{
 			if (_isPooled)
 			{
 				Log.Error($"Unexpected dispose 0x{Id:x2} {GetType().Name}, IsPooled={_isPooled}, IsPermanent={_isPermanent}, Refs={_referenceCounter}");
 			}
-		}
+		}*/
 
 		public override void PutPool()
 		{
