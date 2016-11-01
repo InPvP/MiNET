@@ -1405,6 +1405,7 @@ namespace MiNET.Net
 
 	public partial class McpeDisconnect : Package<McpeDisconnect>
 	{
+		public bool GoToTitleScreen = false;
 		public string message; // = null;
 		public McpeDisconnect()
 		{
@@ -1417,6 +1418,7 @@ namespace MiNET.Net
 
 			BeforeEncode();
 
+			Write(GoToTitleScreen);
 			Write(message);
 
 			AfterEncode();
