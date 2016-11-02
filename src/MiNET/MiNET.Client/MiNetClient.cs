@@ -90,9 +90,9 @@ namespace MiNET.Client
 			//var client = new MiNetClient(new IPEndPoint(IPAddress.Loopback, 19132), "TheGrey");
 
 			//var client = new MiNetClient(new IPEndPoint(IPAddress.Parse("192.168.0.5"), 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
-			var client = new MiNetClient(new IPEndPoint(IPAddress.Parse("192.168.0.255"), 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
+			////var client = new MiNetClient(new IPEndPoint(IPAddress.Parse("192.168.0.255"), 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
 			//var client = new MiNetClient(new IPEndPoint(Dns.GetHostEntry("yodamine.net").AddressList[0], 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
-			//var client = new MiNetClient(new IPEndPoint(IPAddress.Loopback, 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
+			var client = new MiNetClient(new IPEndPoint(IPAddress.Loopback, 19132), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
 
 			//var client = new MiNetClient(new IPEndPoint(IPAddress.Parse("54.229.52.56"), 27212), "TheGrey", new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount)));
 
@@ -1788,11 +1788,12 @@ Adventure settings
 		private void OnMcpeLevelEvent(Package message)
 		{
 			McpeLevelEvent msg = (McpeLevelEvent) message;
-			Log.DebugFormat("Event ID: {0}", msg.eventId);
-			Log.DebugFormat("X: {0}", msg.x);
-			Log.DebugFormat("Y: {0}", msg.y);
-			Log.DebugFormat("Z: {0}", msg.z);
-			Log.DebugFormat("Data: {0}", msg.data);
+			Log.Fatal("@MCPELEVELEVENT");
+			Log.FatalFormat("Event ID: {0}", msg.eventId);
+			Log.FatalFormat("X: {0}", msg.x);
+			Log.FatalFormat("Y: {0}", msg.y);
+			Log.FatalFormat("Z: {0}", msg.z);
+			Log.FatalFormat("Data: {0}", msg.data);
 		}
 
 		private void OnMcpeUpdateBlock(McpeUpdateBlock message)

@@ -3963,7 +3963,7 @@ namespace MiNET.Net
 
 			BeforeEncode();
 
-			Write(dimension);
+			WriteSignedVarInt(dimension);
 			Write(x);
 			Write(y);
 			Write(z);
