@@ -9,7 +9,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
 using NUnit.Framework;
-using TestPlugin;
 using Version = MiNET.Plugins.Version;
 
 namespace MiNET
@@ -127,32 +126,6 @@ namespace MiNET
 		[Test]
 		public void DeserializeObjectModelTest()
 		{
-			CommandSet commandSet = PluginManager.GenerateCommandSet(typeof (CoreCommands).GetMethods());
-
-			string json =
-				@"
-{
-  ""x"": 1,
-  ""y"": 2,
-  ""z"": 3
-}
-";
-
-			var commandJson = JsonConvert.DeserializeObject<dynamic>(json);
-
-			PluginManager pm = new PluginManager();
-			pm.Commands = commandSet;
-			pm.HandleCommand(null, "tp", "default", commandJson);
-
-			var settings = new JsonSerializerSettings();
-			settings.NullValueHandling = NullValueHandling.Ignore;
-			settings.DefaultValueHandling = DefaultValueHandling.IgnoreAndPopulate;
-			settings.MissingMemberHandling = MissingMemberHandling.Error;
-			settings.Formatting = Formatting.Indented;
-			settings.ContractResolver = new CamelCasePropertyNamesContractResolver();
-
-			var output = JsonConvert.SerializeObject(commandSet, settings);
-			Console.WriteLine($"{output}");
 		}
 
 

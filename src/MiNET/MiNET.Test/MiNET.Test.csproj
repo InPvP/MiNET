@@ -97,10 +97,6 @@
       <Project>{B7049BF1-2DB0-435D-9791-09AB61018685}</Project>
       <Name>MiNET</Name>
     </ProjectReference>
-    <ProjectReference Include="..\TestPlugin\TestPlugin.csproj">
-      <Project>{F53DE0D1-333F-42BC-B803-E523CFF0113E}</Project>
-      <Name>TestPlugin</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

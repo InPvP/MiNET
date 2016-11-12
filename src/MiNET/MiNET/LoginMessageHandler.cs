@@ -119,27 +119,29 @@ namespace MiNET
 			using (var defStream2 = new DeflateStream(stream, CompressionMode.Decompress, false))
 			{
 				// Get actual package out of bytes
-				MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream();
-				defStream2.CopyTo(destination);
-				destination.Position = 0;
-				fNbt.NbtBinaryReader reader = new fNbt.NbtBinaryReader(destination, false);
-
-				try
+				using (MemoryStream destination = MiNetServer.MemoryStreamManager.GetStream())
 				{
-					var countCertData = reader.ReadInt32();
-					Log.Debug("Count cert: " + countCertData);
-					certificateChain = Encoding.UTF8.GetString(reader.ReadBytes(countCertData));
-					Log.Debug("Decompressed certificateChain " + certificateChain);
+					defStream2.CopyTo(destination);
+					destination.Position = 0;
+					fNbt.NbtBinaryReader reader = new fNbt.NbtBinaryReader(destination, false);
 
-					var countSkinData = reader.ReadInt32();
-					Log.Debug("Count skin: " + countSkinData);
-					skinData = Encoding.UTF8.GetString(reader.ReadBytes(countSkinData));
-					Log.Debug("Decompressed skinData" + skinData);
-				}
-				catch (Exception e)
-				{
-					Log.Error("Parsing login", e);
-					return;
+					try
+					{
+						var countCertData = reader.ReadInt32();
+						Log.Debug("Count cert: " + countCertData);
+						certificateChain = Encoding.UTF8.GetString(reader.ReadBytes(countCertData));
+						Log.Debug("Decompressed certificateChain " + certificateChain);
+
+						var countSkinData = reader.ReadInt32();
+						Log.Debug("Count skin: " + countSkinData);
+						skinData = Encoding.UTF8.GetString(reader.ReadBytes(countSkinData));
+						Log.Debug("Decompressed skinData" + skinData);
+					}
+					catch (Exception e)
+					{
+						Log.Error("Parsing login", e);
+						return;
+					}
 				}
 			}
 
@@ -280,7 +282,7 @@ namespace MiNET
 							response.NoBatch = true;
 							response.ForceClear = true;
 							response.serverPublicKey = Convert.ToBase64String(ecKey.PublicKey.GetDerEncoded());
-							response.tokenLength = (short) ecKey.SecretPrepend.Length;
+							response.tokenLength = (short)ecKey.SecretPrepend.Length;
 							response.token = ecKey.SecretPrepend;
 
 							_session.SendPackage(response);
@@ -313,7 +315,7 @@ namespace MiNET
 					_playerInfo.Skin = new Skin()
 					{
 						SkinType = payload.SkinId,
-						Texture = Convert.FromBase64String((string) payload.SkinData),
+						Texture = Convert.FromBase64String((string)payload.SkinData),
 					};
 				}
 
