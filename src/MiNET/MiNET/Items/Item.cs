@@ -32,7 +32,6 @@ namespace MiNET.Items
 		public bool IsStackable => MaxStackSize > 1;
 		public int Durability { get; set; }
 		public int FuelEfficiency { get; set; }
-		public List<Enchantment> Enchantments { get; set; } = new List<Enchantment>();
 
 		protected internal Item(short id, short metadata = 0, byte count = 1)
 		{
@@ -61,17 +60,75 @@ namespace MiNET.Items
 
 		public void AddEnchantment(Enchantment enchantment)
 		{
-			Enchantments.Add(enchantment);
+			RemoveEnchantment(enchantment.Id);
+			var enchantments = GetEnchantments();
+			enchantments.Add(enchantment);
+			BindEnchantments(enchantments);
 		}
 
-		public void RemoveEnchantment(Enchantment enchantment)
+		public List<Enchantment> GetEnchantments()
 		{
-			Enchantments.Remove(enchantment);
+			if (ExtraData == null)
+				return new List<Enchantment>();
+
+			NbtList rawEnchantments;
+			if (!ExtraData.TryGet("ench", out rawEnchantments))
+				return new List<Enchantment>();
+			
+			var enchantments = new List<Enchantment>();
+			foreach (NbtCompound rawEnchantment in rawEnchantments)
+			{
+				var id = rawEnchantment["id"].ShortValue;
+				var level = rawEnchantment["lvl"].ShortValue;
+				enchantments.Add(new Arthropods(2));
+			}
+			return enchantments;
+		}
+
+		public void RemoveEnchantment(EnchantmentType type)
+		{
+			var enchantments = GetEnchantments();
+			if (enchantments == null) return;
+			for (var i = 0; i < enchantments.Count; i++)
+			{
+				if (enchantments[i].Id == type)
+				{
+					enchantments.RemoveAt(i);
+				}
+			}
+		}
+
+		public void BindEnchantments(List<Enchantment> enchantments)
+		{
+			if (ExtraData == null)
+			{
+				ExtraData = new NbtCompound();
+			}
+			if (ExtraData.Contains("ench"))
+			{
+				if ((enchantments == null) || (enchantments.Count == 0))
+				{
+					return;
+				}
+				ExtraData.Remove("ench");
+			}
+
+			var list = new NbtList("ench");
+			foreach (Enchantment enchantment in enchantments)
+			{
+				list.Add(new NbtCompound
+					{
+						new NbtShort("id", (short)enchantment.Id),
+						new NbtShort("lvl", enchantment.Level)
+					}
+				);
+			}
+			ExtraData.Add(list);
 		}
 
 		public int EnchantmentLevel(EnchantmentType enchantmentType)
 		{
-			return (from enchantment in Enchantments where enchantment.Id == enchantmentType select enchantment.Level).FirstOrDefault();
+			return (from enchantment in GetEnchantments() where enchantment.Id == enchantmentType select enchantment.Level).FirstOrDefault();
 		}
 
 		public BlockCoordinates GetNewCoordinatesFromFace(BlockCoordinates target, BlockFace face)

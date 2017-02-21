@@ -1,6 +1,6 @@
 ﻿namespace MiNET.Items.Enchantments
 {
-	public enum EnchantmentType : int
+	public enum EnchantmentType : short
 	{
 		Invalid = -1,
 		Protection = 0,

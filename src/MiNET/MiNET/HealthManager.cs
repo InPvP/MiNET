@@ -137,7 +137,7 @@ namespace MiNET
 				epf = epf > 20 ? 20 : epf;
 
 				var deduction = damage * (points * 0.04);
-				damage = (damage - deduction) * epf;
+				damage -= (damage - deduction) * epf;
 			}
 
 
