@@ -10,7 +10,7 @@ namespace TestPlugin.Pets
 		{
 		}
 
-		public override void TakeHit(Entity source, int damage = 1, DamageCause cause = DamageCause.Unknown)
+		public override void TakeHit(Entity source, double damage = 1, DamageCause cause = DamageCause.Unknown)
 		{
 			if (!(source is Player)) return;
 
