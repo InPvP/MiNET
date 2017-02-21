@@ -4,6 +4,8 @@ using System.Numerics;
 using System.Reflection;
 using log4net;
 using MiNET.Entities;
+using MiNET.Items;
+using MiNET.Items.Enchantments;
 using MiNET.Net;
 using MiNET.Utils;
 using MiNET.Worlds;
@@ -33,11 +35,12 @@ namespace MiNET
 	public class HealthManager
 	{
 		private static readonly ILog Log = LogManager.GetLogger(typeof (HealthManager));
+		private static Random _random = new Random();
 
 		private int _hearts;
 		public Entity Entity { get; set; }
-		public int MaxHealth { get; set; } = 200;
-		public int Health { get; set; }
+		public double MaxHealth { get; set; } = 200;
+		public double Health { get; set; }
 		public short MaxAir { get; set; } = 400;
 		public short Air { get; set; }
 		public bool IsDead { get; set; }
@@ -73,7 +76,7 @@ namespace MiNET
 			}
 		}
 
-		public virtual void TakeHit(Entity source, int damage = 1, DamageCause cause = DamageCause.Unknown)
+		public virtual void TakeHit(Entity source, double damage = 1, DamageCause cause = DamageCause.Unknown)
 		{
 			var player = Entity as Player;
 			if (player != null && player.GameMode != GameMode.Survival) return;
@@ -83,6 +86,60 @@ namespace MiNET
 
 			LastDamageSource = source;
 			LastDamageCause = cause;
+
+
+
+			// TODO: Skeletons and other mobs should also have inventories, so account for their armour also.
+			if (player != null)
+			{
+				int points = 0;
+				int epf = 0;
+				foreach (Item item in player.Inventory.GetArmor())
+				{
+					if (item.Id == 0) continue;
+					points += item.GetArmorPoints();
+					if (epf > 25) continue;
+					if (cause == DamageCause.Fire || cause == DamageCause.Lava || cause == DamageCause.FireTick)
+					{
+						var lvl = item.EnchantmentLevel(EnchantmentType.Protection);
+						if (lvl > 0)
+						{
+							epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) * 0.75 / 3);
+						}
+						epf += (int)Math.Floor((6 + Math.Pow(item.EnchantmentLevel(EnchantmentType.BlastProtection), 2)) * 1.25 / 3);
+					}
+					if (cause == DamageCause.BlockExplosion || cause == DamageCause.EntityExplosion)
+					{
+						var lvl = item.EnchantmentLevel(EnchantmentType.BlastProtection);
+						if (lvl > 0)
+						{
+							epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) * 1.5 / 3);
+						}
+					}
+					if (cause == DamageCause.Projectile)
+					{
+						var lvl = item.EnchantmentLevel(EnchantmentType.ProjectileProtection);
+						if (lvl > 0)
+						{
+							epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) * 1.5 / 3);
+						}
+					}
+					if (cause == DamageCause.Fall)
+					{
+						var lvl = item.EnchantmentLevel(EnchantmentType.FallProtection);
+						if (lvl > 0)
+						{
+							epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) *2.5 / 3);
+						}
+					}
+				}
+				epf = (int)Math.Ceiling( (epf > 25 ? 25 : epf) * (_random.NextDouble() * (1 - 0.5) + 0.5) );
+				epf = epf > 20 ? 20 : epf;
+
+				var deduction = damage * (points * 0.04);
+				damage = (damage - deduction) * epf;
+			}
+
 
 			Health -= damage*10;
 			if (Health < 0)

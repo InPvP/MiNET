@@ -1,7 +1,12 @@
-﻿using System.Numerics;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using fNbt;
 using MiNET.BlockEntities;
 using MiNET.Blocks;
+using MiNET.Entities;
+using MiNET.Entities.Hostile;
+using MiNET.Items.Enchantments;
 using MiNET.Utils;
 using MiNET.Worlds;
 
@@ -27,6 +32,7 @@ namespace MiNET.Items
 		public bool IsStackable => MaxStackSize > 1;
 		public int Durability { get; set; }
 		public int FuelEfficiency { get; set; }
+		public List<Enchantment> Enchantments { get; set; } = new List<Enchantment>();
 
 		protected internal Item(short id, short metadata = 0, byte count = 1)
 		{
@@ -53,6 +59,21 @@ namespace MiNET.Items
 			return false;
 		}
 
+		public void AddEnchantment(Enchantment enchantment)
+		{
+			Enchantments.Add(enchantment);
+		}
+
+		public void RemoveEnchantment(Enchantment enchantment)
+		{
+			Enchantments.Remove(enchantment);
+		}
+
+		public int EnchantmentLevel(EnchantmentType enchantmentType)
+		{
+			return (from enchantment in Enchantments where enchantment.Id == enchantmentType select enchantment.Level).FirstOrDefault();
+		}
+
 		public BlockCoordinates GetNewCoordinatesFromFace(BlockCoordinates target, BlockFace face)
 		{
 			switch (face)
@@ -74,23 +95,43 @@ namespace MiNET.Items
 			}
 		}
 
-		public int GetDamage()
+		public virtual double GetDamage()
 		{
+			double damage;
 			switch (ItemType)
 			{
 				case ItemType.Sword:
-					return GetSwordDamage(ItemMaterial);
-				case ItemType.Item:
-					return 1;
+					damage = GetSwordDamage(ItemMaterial);
+					break;
 				case ItemType.Axe:
-					return GetAxeDamage(ItemMaterial);
+					damage = GetAxeDamage(ItemMaterial);
+					break;
 				case ItemType.PickAxe:
-					return GetPickAxeDamage(ItemMaterial);
+					damage = GetPickAxeDamage(ItemMaterial);
+					break;
 				case ItemType.Shovel:
-					return GetShovelDamage(ItemMaterial);
+					damage = GetShovelDamage(ItemMaterial);
+					break;
 				default:
-					return 1;
+					damage = 1;
+					break;
 			}
+			var sharpnessLvl = EnchantmentLevel(EnchantmentType.Sharpness);
+			return sharpnessLvl > 0 ? damage + 0.5 * (sharpnessLvl + 1) : damage;
+		}
+
+		public virtual double GetDamage(Entity entity)
+		{
+			double damage = GetDamage();
+			if ((entity.GetType() == typeof(Skeleton)) || (entity.GetType() == typeof(Zombie)) || (entity.GetType() == typeof(Witch)) || (entity.GetType() == typeof(ZombiePigman)))
+			{
+				damage += 2.5 * EnchantmentLevel(EnchantmentType.Smite);
+			} else
+			if ((entity.GetType() == typeof(Spider)) || (entity.GetType() == typeof(CaveSpider)) || (entity.GetType() == typeof(Silverfish)))
+			{
+				damage += 2.5 * EnchantmentLevel(EnchantmentType.Arthropods);
+			}
+			return damage;
 		}
 
 		protected int GetSwordDamage(ItemMaterial itemMaterial)
@@ -98,33 +139,113 @@ namespace MiNET.Items
 			switch (itemMaterial)
 			{
 				case ItemMaterial.Wood:
-					return 5;
+					return 4;
 				case ItemMaterial.Gold:
-					return 5;
+					return 4;
 				case ItemMaterial.Stone:
-					return 6;
+					return 5;
 				case ItemMaterial.Iron:
-					return 7;
+					return 6;
 				case ItemMaterial.Diamond:
-					return 8;
+					return 7;
 				default:
 					return 1;
 			}
 		}
 
-		private int GetAxeDamage(ItemMaterial itemMaterial)
+		private double GetAxeDamage(ItemMaterial itemMaterial)
 		{
 			return GetSwordDamage(itemMaterial) - 1;
 		}
 
-		private int GetPickAxeDamage(ItemMaterial itemMaterial)
+		private double GetPickAxeDamage(ItemMaterial itemMaterial)
 		{
 			return GetSwordDamage(itemMaterial) - 2;
 		}
 
-		private int GetShovelDamage(ItemMaterial itemMaterial)
+		private double GetShovelDamage(ItemMaterial itemMaterial)
 		{
 			return GetSwordDamage(itemMaterial) - 3;
+		}
+
+		public virtual int GetArmorPoints()
+		{
+			if (ItemType == ItemType.Helmet)
+			{
+				switch (ItemMaterial)
+				{
+					case ItemMaterial.Leather:
+						return 1;
+					case ItemMaterial.Gold:
+						return 2;
+					case ItemMaterial.Chain:
+						return 2;
+					case ItemMaterial.Iron:
+						return 2;
+					case ItemMaterial.Diamond:
+						return 3;
+					default:
+						return 0;
+				}
+			}
+			if (ItemType == ItemType.Chestplate)
+			{
+				switch (ItemMaterial)
+				{
+					case ItemMaterial.Leather:
+						return 3;
+					case ItemMaterial.Gold:
+						return 5;
+					case ItemMaterial.Chain:
+						return 5;
+					case ItemMaterial.Iron:
+						return 6;
+					case ItemMaterial.Diamond:
+						return 8;
+					default:
+						return 0;
+				}
+			}
+
+			if (ItemType == ItemType.Leggings)
+			{
+				switch (ItemMaterial)
+				{
+					case ItemMaterial.Leather:
+						return 2;
+					case ItemMaterial.Gold:
+						return 3;
+					case ItemMaterial.Chain:
+						return 4;
+					case ItemMaterial.Iron:
+						return 5;
+					case ItemMaterial.Diamond:
+						return 6;
+					default:
+						return 0;
+				}
+			}
+
+			if (ItemType == ItemType.Boots)
+			{
+				switch (ItemMaterial)
+				{
+					case ItemMaterial.Leather:
+						return 1;
+					case ItemMaterial.Gold:
+						return 1;
+					case ItemMaterial.Chain:
+						return 1;
+					case ItemMaterial.Iron:
+						return 2;
+					case ItemMaterial.Diamond:
+						return 3;
+					default:
+						return 0;
+				}
+			}
+
+			return 0;
 		}
 
 		public virtual Item GetSmelt()
