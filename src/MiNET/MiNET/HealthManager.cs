@@ -99,14 +99,20 @@ namespace MiNET
 					if (item.Id == 0) continue;
 					points += item.GetArmorPoints();
 					if (epf > 25) continue;
+					var plvl = item.EnchantmentLevel(EnchantmentType.Protection);
+					if (plvl > 0)
+					{
+						epf += (int)Math.Floor((6 + Math.Pow(plvl, 2)) * 0.75 / 3);
+					}
+					epf += (int)Math.Floor((6 + Math.Pow(item.EnchantmentLevel(EnchantmentType.BlastProtection), 2)) * 1.25 / 3);
 					if (cause == DamageCause.Fire || cause == DamageCause.Lava || cause == DamageCause.FireTick)
 					{
-						var lvl = item.EnchantmentLevel(EnchantmentType.Protection);
+						var lvl = item.EnchantmentLevel(EnchantmentType.FireAspect);
 						if (lvl > 0)
 						{
 							epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) * 0.75 / 3);
 						}
-						epf += (int)Math.Floor((6 + Math.Pow(item.EnchantmentLevel(EnchantmentType.BlastProtection), 2)) * 1.25 / 3);
+						epf += (int)Math.Floor((6 + Math.Pow(lvl, 2)) * 1.25 / 3);
 					}
 					if (cause == DamageCause.BlockExplosion || cause == DamageCause.EntityExplosion)
 					{
@@ -133,11 +139,12 @@ namespace MiNET
 						}
 					}
 				}
-				epf = (int)Math.Ceiling( (epf > 25 ? 25 : epf) * (_random.NextDouble() * (1 - 0.5) + 0.5) );
+				epf = epf > 25 ? 25 : epf;
+				epf = (int) Math.Ceiling( epf * (_random.NextDouble() * (1 - 0.5) + 0.5) );
 				epf = epf > 20 ? 20 : epf;
 
-				var deduction = damage * (points * 0.04);
-				damage -= (damage - deduction) * epf;
+				damage *= 1 - points * 0.04;
+				damage *= 1 - epf * 0.04;
 			}
 
 
