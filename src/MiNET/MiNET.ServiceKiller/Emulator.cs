@@ -23,10 +23,10 @@ namespace MiNET.ServiceKiller
 
 		private const int TimeBetweenSpawns = 750;
 		private static readonly TimeSpan DurationOfConnection = TimeSpan.FromSeconds(45);
-		private const int NumberOfBots = 50;
+		private const int NumberOfBots = 5000;
 		private const int RanSleepMin = 150;
 		private const int RanSleepMax = 450;
-		private const int RequestChunkRadius = 5;
+		private const int RequestChunkRadius = 1;
 
 		private static bool _running = true;
 

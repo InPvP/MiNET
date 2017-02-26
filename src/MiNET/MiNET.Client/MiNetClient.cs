@@ -1258,7 +1258,7 @@ namespace MiNET.Client
 
 			McpeLogin loginPacket = new McpeLogin
 			{
-				protocolVersion = 92,
+				protocolVersion = 101,
 				edition = 0,
 				payload = data
 			};

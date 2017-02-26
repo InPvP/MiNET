@@ -875,6 +875,16 @@ namespace MiNET
 				}
 			}
 
+			if (_openInventory != null)
+			{
+				lock (_inventorySync)
+				{
+					_openInventory.InventoryChange -= OnInventoryChange;
+					_openInventory.RemoveObserver(this);
+					_openInventory = null;
+				}
+			}
+
 			Level.RemovePlayer(this, true);
 			//Level.EntityManager.RemoveEntity(null, this);
 
@@ -1033,6 +1043,16 @@ namespace MiNET
 					NetworkHandler = null;
 
 					IsConnected = false;
+				}
+
+				if (_openInventory != null)
+				{
+					lock (_inventorySync)
+					{
+						_openInventory.InventoryChange -= OnInventoryChange;
+						_openInventory.RemoveObserver(this);
+						_openInventory = null;
+					}
 				}
 
 				Level?.RemovePlayer(this);
