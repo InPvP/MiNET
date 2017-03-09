@@ -514,6 +514,8 @@ namespace TestPlugin
 			//}
 
 			//inventory.Slots[c++] = new ItemItemFrame() { Count = 64 };
+			inventory.Slots[c++] = new ItemEnchantingTable();
+			inventory.Slots[c++] = ItemFactory.GetItem(351, 4, 64);
 			inventory.Slots[c++] = new ItemBlock(new Planks(), 0) {Count = 64};
 			inventory.Slots[c++] = new ItemCompass(); // Wooden Sword
 			inventory.Slots[c++] = new ItemWoodenSword(); // Wooden Sword
@@ -777,6 +779,14 @@ namespace TestPlugin
 			}
 		}
 
+		[Command(Name = "xp")]
+		public void Xp(Player player)
+		{
+			player.Experience += 0.1f;
+			player.ExperienceLevel += 1;
+			player.SendUpdateAttributes();
+		}
+
 		[Command(Name = "nd")]
 		public void NoDamage(Player player)
 		{
@@ -786,7 +796,7 @@ namespace TestPlugin
 		}
 
 		[Command(Name = "r")]
-		[Authorize(Permission = UserPermission.Op)]
+		//[Authorize(Permission = UserPermission.Op)]
 		public void DisplayRestartNotice(Player currentPlayer)
 		{
 			var players = currentPlayer.Level.GetSpawnedPlayers();
@@ -802,6 +812,15 @@ namespace TestPlugin
 					Priority = 100, MessageType = MessageType.Popup, Message = "Transfering all players!", Duration = 20*10,
 				});
 			}
+
+			foreach (var player in players)
+			{
+				McpeTransfer transfer = McpeTransfer.CreateObject();
+				transfer.serverAddress = "yodamine.com";
+				transfer.port = 19132;
+				player.SendPackage(transfer);
+			}
+
 		}
 
 		private byte _invId = 0;

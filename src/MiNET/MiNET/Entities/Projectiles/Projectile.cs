@@ -170,6 +170,7 @@ namespace MiNET.Entities.Projectiles
 				Player player = entityCollided as Player;
 
 				entityCollided.HealthManager.TakeHit(this, damage, DamageCause.Projectile);
+
 				entityCollided.HealthManager.LastDamageSource = Shooter;
 				collided = true;
 			}

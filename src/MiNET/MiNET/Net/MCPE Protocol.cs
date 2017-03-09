@@ -26,6 +26,7 @@ namespace MiNET.Net
 		void HandleMcpeText(McpeText message);
 		void HandleMcpeMovePlayer(McpeMovePlayer message);
 		void HandleMcpeRemoveBlock(McpeRemoveBlock message);
+		void HandleMcpeLevelSoundEvent(McpeLevelSoundEvent message);
 		void HandleMcpeEntityEvent(McpeEntityEvent message);
 		void HandleMcpeMobEquipment(McpeMobEquipment message);
 		void HandleMcpeMobArmorEquipment(McpeMobArmorEquipment message);
@@ -2105,8 +2106,8 @@ namespace MiNET.Net
 
 	public partial class McpeTakeItemEntity : Package<McpeTakeItemEntity>
 	{
-		public long target; // = null;
 		public long entityId; // = null;
+		public long target; // = null;
 		public McpeTakeItemEntity()
 		{
 			Id = 0x12;
@@ -2118,8 +2119,8 @@ namespace MiNET.Net
 
 			BeforeEncode();
 
-			WriteUnsignedVarLong(target);
 			WriteUnsignedVarLong(entityId);
+			WriteUnsignedVarLong(target);
 
 			AfterEncode();
 		}
@@ -2133,8 +2134,8 @@ namespace MiNET.Net
 
 			BeforeDecode();
 
-			target = ReadUnsignedVarLong();
 			entityId = ReadUnsignedVarLong();
+			target = ReadUnsignedVarLong();
 
 			AfterDecode();
 		}
@@ -3438,7 +3439,7 @@ namespace MiNET.Net
 		public byte type; // = null;
 		public int slotCount; // = null;
 		public BlockCoordinates coordinates; // = null;
-		public long unownEntityId; // = null;
+		public long unknownEntityId; // = null;
 		public McpeContainerOpen()
 		{
 			Id = 0x30;
@@ -3454,7 +3455,7 @@ namespace MiNET.Net
 			Write(type);
 			WriteSignedVarInt(slotCount);
 			Write(coordinates);
-			WriteUnsignedVarLong(unownEntityId);
+			WriteUnsignedVarLong(unknownEntityId);
 
 			AfterEncode();
 		}
@@ -3472,7 +3473,7 @@ namespace MiNET.Net
 			type = ReadByte();
 			slotCount = ReadSignedVarInt();
 			coordinates = ReadBlockCoordinates();
-			unownEntityId = ReadUnsignedVarLong();
+			unknownEntityId = ReadUnsignedVarLong();
 
 			AfterDecode();
 		}
@@ -4243,7 +4244,7 @@ namespace MiNET.Net
 
 			BeforeEncode();
 
-			WriteUnsignedVarLong(mapId);
+			WriteSignedVarLong(mapId);
 
 			AfterEncode();
 		}
@@ -4257,7 +4258,7 @@ namespace MiNET.Net
 
 			BeforeDecode();
 
-			mapId = ReadUnsignedVarLong();
+			mapId = ReadSignedVarLong();
 
 			AfterDecode();
 		}

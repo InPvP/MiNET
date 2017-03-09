@@ -8,7 +8,6 @@ using System.Linq;
 using System.Net;
 using System.Numerics;
 using System.Threading;
-using fNbt;
 using log4net;
 using Microsoft.AspNet.Identity;
 using MiNET.Blocks;
@@ -74,6 +73,8 @@ namespace MiNET
 		public User User { get; set; }
 		public Session Session { get; set; }
 
+		public DamageCalculator DamageCalculator { get; set; } = new DamageCalculator();
+
 		public Player(MiNetServer server, IPEndPoint endPoint) : base(-1, null)
 		{
 			Server = server;
@@ -85,6 +86,8 @@ namespace MiNET
 			IsSpawned = false;
 			IsConnected = endPoint != null; // Can't connect if there is no endpoint
 
+			Width = 0.6f;
+			Length = Width;
 			Height = 1.85;
 
 			HideNameTag = false;
@@ -147,12 +150,22 @@ namespace MiNET
 			}
 			else if (message.responseStatus == 3)
 			{
-				SendResourcePackStack();
+				if (_serverHaveResources)
+				{
+					SendResourcePackStack();
+				}
+				else
+				{
+					MiNetServer.FastThreadPool.QueueUserWorkItem(() => { Start(null); });
+				}
 				return;
 			}
 			else if (message.responseStatus == 4)
 			{
-				MiNetServer.FastThreadPool.QueueUserWorkItem(() => { Start(null); });
+				if (_serverHaveResources)
+				{
+					MiNetServer.FastThreadPool.QueueUserWorkItem(() => { Start(null); });
+				}
 				return;
 			}
 		}
@@ -248,7 +261,7 @@ namespace MiNET
 
 			SendChunkRadiusUpdate();
 
-			if (_completedStartSequence)
+			//if (_completedStartSequence)
 			{
 				MiNetServer.FastThreadPool.QueueUserWorkItem(SendChunksForKnownPosition);
 			}
@@ -266,8 +279,6 @@ namespace MiNET
 		public virtual void HandleMcpeAnimate(McpeAnimate message)
 		{
 			if (Level == null) return;
-
-			Log.DebugFormat("HandleAnimate Action: {0}", message.actionId);
 
 			var itemInHand = Inventory.GetItemInHand();
 			if (itemInHand != null)
@@ -289,14 +300,6 @@ namespace MiNET
 		/// <param name="message">The message.</param>
 		public virtual void HandleMcpePlayerAction(McpePlayerAction message)
 		{
-			Log.DebugFormat("Player action: {0}", message.actionId);
-			Log.DebugFormat("Entity ID: {0}", message.entityId);
-			Log.DebugFormat("Action ID:  {0}", message.actionId);
-			Log.DebugFormat("x:  {0}", message.coordinates.X);
-			Log.DebugFormat("y:  {0}", message.coordinates.Y);
-			Log.DebugFormat("z:  {0}", message.coordinates.Z);
-			Log.DebugFormat("Face:  {0}", message.face);
-
 			switch ((PlayerAction) message.actionId)
 			{
 				case PlayerAction.StartBreak:
@@ -533,17 +536,16 @@ namespace MiNET
 
 				SendStartGame();
 
+				if (ChunkRadius == -1) ChunkRadius = 5;
+
+				SendChunkRadiusUpdate();
+
 				//SendSetSpawnPosition();
 
 				SendSetTime();
 
 				SendSetDificulty();
 
-				{
-					var setCmdEnabled = McpeSetCommandsEnabled.CreateObject();
-					setCmdEnabled.enabled = false;
-					SendPackage(setCmdEnabled);
-				}
 
 				SendSetCommandsEnabled();
 
@@ -556,8 +558,6 @@ namespace MiNET
 				// Vanilla 2nd player list here
 
 				Level.AddPlayer(this, false);
-
-				// Send McpeAvailableCommands
 
 				SendAvailableCommands();
 
@@ -577,11 +577,6 @@ namespace MiNET
 
 				BroadcastSetEntityData();
 
-				// Vanilla sends chunks here
-
-				//SendRespawn();
-
-				//SendPlayerStatus(3);
 			}
 			catch (Exception e)
 			{
@@ -594,15 +589,10 @@ namespace MiNET
 
 			LastUpdatedTime = DateTime.UtcNow;
 
-
-			if (ChunkRadius == -1) ChunkRadius = 5;
-
-			SendChunkRadiusUpdate();
-
 			_completedStartSequence = true;
 
-			ForcedSendChunk(KnownPosition);
-			SendChunksForKnownPosition();
+			//ForcedSendChunk(KnownPosition);
+			//SendChunksForKnownPosition();
 			//MiNetServer.FastThreadPool.QueueUserWorkItem(SendChunksForKnownPosition);
 
 			LastUpdatedTime = DateTime.UtcNow;
@@ -1202,6 +1192,10 @@ namespace MiNET
 			Level.BreakBlock(this, message.coordinates);
 		}
 
+		public void HandleMcpeLevelSoundEvent(McpeLevelSoundEvent message)
+		{
+		}
+
 		public virtual void HandleMcpeMobArmorEquipment(McpeMobArmorEquipment message)
 		{
 		}
@@ -1343,7 +1337,7 @@ namespace MiNET
 				containerOpen.type = inventory.Type;
 				containerOpen.slotCount = inventory.Size;
 				containerOpen.coordinates = inventoryCoord;
-				containerOpen.unownEntityId = 1;
+				containerOpen.unknownEntityId = 1;
 				SendPackage(containerOpen);
 
 				var containerSetContent = McpeContainerSetContent.CreateObject();
@@ -1411,7 +1405,7 @@ namespace MiNET
 				{
 					if (_openInventory.WindowsId == message.windowId)
 					{
-						if (_openInventory.Type == 4)
+						if (_openInventory.Type == 3)
 						{
 							Recipes recipes = new Recipes();
 							recipes.Add(new EnchantingRecipe());
@@ -1549,7 +1543,6 @@ namespace MiNET
 				}
 			}
 
-
 			// Old code...
 			if (message.actionId != 2) return;
 
@@ -1557,28 +1550,10 @@ namespace MiNET
 			if (player != null)
 			{
 				Item itemInHand = Inventory.GetItemInHand();
-				double damage = itemInHand.GetDamage(); //Item Damage.
-				if (IsFalling)
-				{
-					damage += Level.Random.Next((int) (damage/2 + 2));
+				double damage = itemInHand.GetDamage();
 
-					McpeAnimate animate = McpeAnimate.CreateObject();
-					animate.entityId = target.EntityId;
-					animate.actionId = 4;
-					Level.RelayBroadcast(animate);
-				}
+				damage += DamageCalculator.CalculateEffectDamage(this, damage, player);
 
-				Effect effect;
-				if (Effects.TryGetValue(EffectType.Weakness, out effect))
-				{
-					damage -= (effect.Level + 1)*4;
-					if (damage < 0) damage = 0;
-				}
-				else if (Effects.TryGetValue(EffectType.Strength, out effect))
-				{
-					damage += (effect.Level + 1)*3;
-				}
-				
 				player.HealthManager.TakeHit(this, damage, DamageCause.EntityAttack);
 			}
 			else
@@ -1884,7 +1859,7 @@ namespace MiNET
 				MinValue = 1,
 				MaxValue = 1,
 				Value = 1,
-				Unknown = 1,
+				Default = 1,
 			};
 			attributes["minecraft:absorption"] = new PlayerAttribute
 			{
@@ -1892,7 +1867,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = float.MaxValue,
 				Value = Absorption,
-				Unknown = 0,
+				Default = 0,
 			};
 			attributes["minecraft:health"] = new PlayerAttribute
 			{
@@ -1900,7 +1875,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 20,
 				Value = HealthManager.Hearts,
-				Unknown = 20,
+				Default = 20,
 			};
 			attributes["minecraft:movement"] = new PlayerAttribute
 			{
@@ -1908,7 +1883,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 0.5f,
 				Value = MovementSpeed,
-				Unknown = MovementSpeed,
+				Default = MovementSpeed,
 			};
 			attributes["minecraft:knockback_resistance"] = new PlayerAttribute
 			{
@@ -1916,7 +1891,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 1,
 				Value = 0,
-				Unknown = 0,
+				Default = 0,
 			};
 			attributes["minecraft:luck"] = new PlayerAttribute
 			{
@@ -1924,7 +1899,7 @@ namespace MiNET
 				MinValue = -1025,
 				MaxValue = 1024,
 				Value = 0,
-				Unknown = 0,
+				Default = 0,
 			};
 			attributes["minecraft:fall_damage"] = new PlayerAttribute
 			{
@@ -1932,7 +1907,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = float.MaxValue,
 				Value = 1,
-				Unknown = 1,
+				Default = 1,
 			};
 			attributes["minecraft:player.experience"] = new PlayerAttribute
 			{
@@ -1940,7 +1915,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 1,
 				Value = Experience,
-				Unknown = 0,
+				Default = 0,
 			};
 			attributes["minecraft:follow_range"] = new PlayerAttribute
 			{
@@ -1948,7 +1923,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 2048,
 				Value = 16,
-				Unknown = 16,
+				Default = 16,
 			};
 			attributes["minecraft:player.level"] = new PlayerAttribute
 			{
@@ -1956,7 +1931,7 @@ namespace MiNET
 				MinValue = 0,
 				MaxValue = 24791,
 				Value = ExperienceLevel,
-				Unknown = 0,
+				Default = 0,
 			};
 
 			// Workaround, bad design.

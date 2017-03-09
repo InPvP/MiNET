@@ -720,8 +720,8 @@ val2 float
 
 | Name | Type | Size |
 |:-----|:-----|:-----|
-|Target | UnsignedVarLong |  |
 |Entity Id | UnsignedVarLong |  |
+|Target | UnsignedVarLong |  |
 -----------------------------------------------------------------------
 ###Package: Mcpe Move Entity (0x13)
 
@@ -850,7 +850,7 @@ MODE_ROTATION = 2;
 ###Package: Mcpe Level Sound Event (0x1a)
 
 **Sent from server:** true
-**Sent from client:** false
+**Sent from client:** true
 **Packet size:** 
 
 
@@ -1217,7 +1217,7 @@ MODE_ROTATION = 2;
 |Type | byte |  |
 |Slot Count | SignedVarInt |  |
 |Coordinates | BlockCoordinates |  |
-|Unown Entity ID | UnsignedVarLong |  |
+|Unknown Entity ID | UnsignedVarLong |  |
 -----------------------------------------------------------------------
 ###Package: Mcpe Container Close (0x31)
 
@@ -1507,7 +1507,7 @@ ORDER_LAYERED = 1;
 
 | Name | Type | Size |
 |:-----|:-----|:-----|
-|Map ID | UnsignedVarLong |  |
+|Map ID | SignedVarLong |  |
 -----------------------------------------------------------------------
 ###Package: Mcpe Request Chunk Radius (0x44)
 
