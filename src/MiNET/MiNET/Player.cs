@@ -675,7 +675,10 @@ namespace MiNET
 			LastUpdatedTime = DateTime.UtcNow;
 			_haveJoined = true;
 
-			OnPlayerJoin(new PlayerEventArgs(this));
+			if (!_haveJoined)
+			{
+				OnPlayerJoin(new PlayerEventArgs(this));
+			}
 		}
 
 		public virtual void HandleMcpeRespawn()
