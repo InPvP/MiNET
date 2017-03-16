@@ -57,8 +57,7 @@ namespace MiNET
 
 		public bool ForceOrderingForAll { get; set; }
 
-		internal static DedicatedThreadPool FastThreadPool { get; set; }
-		internal static DedicatedThreadPool LevelThreadPool { get; set; }
+		public static DedicatedThreadPool FastThreadPool { get; set; }
 
 		public MiNetServer()
 		{
@@ -81,7 +80,6 @@ namespace MiNET
 
 			//ThreadPool.SetMinThreads(threads, iothreads);
 			FastThreadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
-			LevelThreadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
 			_receiveThreadPool = new DedicatedThreadPool(new DedicatedThreadPoolSettings(Environment.ProcessorCount));
 		}
 
