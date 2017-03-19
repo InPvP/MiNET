@@ -21,8 +21,8 @@ namespace MiNET.ServiceKiller
 		//private const int RequestChunkRadius = 8;
 
 
-		private const int TimeBetweenSpawns = 750;
-		private static readonly TimeSpan DurationOfConnection = TimeSpan.FromSeconds(45);
+		private const int TimeBetweenSpawns = 75;
+		private static readonly TimeSpan DurationOfConnection = TimeSpan.FromSeconds(5);
 		private const int NumberOfBots = 5000;
 		private const int RanSleepMin = 150;
 		private const int RanSleepMax = 450;
@@ -61,7 +61,8 @@ namespace MiNET.ServiceKiller
 
 				long start = DateTime.UtcNow.Ticks;
 
-				IPEndPoint endPoint = new IPEndPoint(IPAddress.Loopback, 19132);
+				//IPEndPoint endPoint = new IPEndPoint(IPAddress.Loopback, 19132);
+				IPEndPoint endPoint = new IPEndPoint(Dns.GetHostEntry("nj-mc5.inpvp.net").AddressList[0], 19132);
 
 				for (int j = 0; j < NumberOfBots; j++)
 				{

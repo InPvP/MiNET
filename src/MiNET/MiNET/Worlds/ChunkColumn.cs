@@ -262,7 +262,7 @@ namespace MiNET.Worlds
 			}
 		}
 
-		internal void ClearCache()
+		public void ClearCache()
 		{
 			lock (_cacheSync)
 			{
